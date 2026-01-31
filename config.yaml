@@ -1,0 +1,26 @@
+dataset:
+  path: data/train.csv
+  extension: .csv
+  prompt_column: prompt
+  label_column: search
+  confidence_column: confidence
+
+output_directory: models/
+
+models:
+  tfidf:
+    name: tfidf
+    max_features: 5000
+    ngram_range: [1, 3]
+    min_document_frequency: 2
+    max_document_frequency: 0.95
+    regularization_strength: 1.0
+    random_state: 42
+
+  fasttext:
+    name: fasttext
+    embedding_dim: 300
+    classifier_type: logistic
+    regularization_strength: 1.0
+    random_state: 42
+    embeddings_path: cc.pl.300.bin
