@@ -1,6 +1,5 @@
 import argparse
 import sys
-import traceback
 from pathlib import Path
 from typing import Tuple
 
@@ -20,7 +19,7 @@ def parse_arguments() -> argparse.Namespace:
     Parse command-line arguments.
 
     Returns:
-        Parsed arguments namespace
+        Parsed arguments namespace.
     """
     parser = argparse.ArgumentParser(
         description="Train web search classifier",
@@ -75,16 +74,16 @@ def load_configuration(
     Load model configuration from YAML file or use defaults.
 
     Args:
-        config_path: Path to YAML configuration file
-        model_type: Type of model to train (tfidf or fasttext)
-        output_path_override: Optional path to override config output path
+        config_path: Path to YAML configuration file.
+        model_type: Type of model to train (`tfidf` or `fasttext`).
+        output_path_override: Optional path to override config output path.
 
     Returns:
-        Tuple of (model config, output path)
+        Tuple of (model config, output path).
 
     Raises:
-        ValueError: If model type is unknown
-        KeyError: If model type not found in config file
+        ValueError: If model type is unknown.
+        KeyError: If model type not found in config file.
     """
     try:
         logger.info("Loading configuration from %s", config_path)
@@ -119,10 +118,10 @@ def run_pipeline(
     Execute training pipeline and display usage instructions.
 
     Args:
-        pipeline: Initialized pipeline instance
-        config: Model configuration
-        output_path: Path to save trained model
-        model_type: Type of model being trained
+        pipeline: Initialized pipeline instance.
+        config: Model configuration.
+        output_path: Path to save trained model.
+        model_type: Type of model being trained.
 
     Raises:
         FileNotFoundError: If required files are missing
@@ -138,7 +137,6 @@ def run_pipeline(
         raise
     except Exception as exception:
         logger.error("Unexpected error: %s", exception)
-        traceback.print_exc()
         raise
 
 
@@ -151,9 +149,9 @@ def _display_usage_instructions(
     Display instructions for loading and using the trained model.
 
     Args:
-        model_type: Type of model trained
-        output_path: Path where model was saved
-        config: Model configuration used
+        model_type: Type of model trained.
+        output_path: Path where model was saved.
+        config: Model configuration used.
     """
     logger.info("To use the model:")
 
