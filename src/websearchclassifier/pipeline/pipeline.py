@@ -1,11 +1,5 @@
-"""
-Training pipeline for web search classifiers.
-Automates dataset loading, model training, and persistence.
-"""
-
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
@@ -19,7 +13,7 @@ from websearchclassifier.config import (
 )
 from websearchclassifier.dataset import Dataset
 from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TfidfSearchClassifier
-from websearchclassifier.pipeline.models import ModelType
+from websearchclassifier.pipeline.types import ModelTypeLike
 from websearchclassifier.utils import logger
 
 
@@ -60,15 +54,15 @@ class Pipeline:
             FileNotFoundError: If data file doesn't exist
             ValueError: If required columns are missing
         """
-        logger.info(f"Loading dataset from {self.dataset_config.path}...")
+        logger.info("Loading dataset from %s...", str(self.dataset_config.dataset_path))
         self.dataset = Dataset.load(self.dataset_config)
 
         num_positive = self.dataset.positive
         num_negative = self.dataset.negative
 
-        logger.info(f"Loaded {len(self.dataset.prompts)} examples")
-        logger.info(f"  - Needs search: {num_positive} ({num_positive/self.dataset.size*100:.1f}%)")
-        logger.info(f"  - No search:    {num_negative} ({num_negative/self.dataset.size*100:.1f}%)")
+        logger.info("Loaded %s examples", len(self.dataset.prompts))
+        logger.info("  - Needs search: %s (%.1f%%)", num_positive, num_positive / self.dataset.size * 100)
+        logger.info("  - No search:    %s (%.1f%%)", num_negative, num_negative / self.dataset.size * 100)
 
         return self.dataset
 
@@ -90,27 +84,25 @@ class Pipeline:
 
         classifier: SearchClassifier[Any]
         if isinstance(config, FastTextSearchClassifierConfig):
-            logger.info(f"Initializing FastTextSearchClassifier...")
+            logger.info("Initializing FastTextSearchClassifier...")
             classifier = FastTextSearchClassifier(config=config)
 
-            embeddings_path = config.embeddings_path
-            if not embeddings_path.exists():
+            if not config.embeddings_path.exists():
                 raise FileNotFoundError(
-                    f"FastText embeddings not found at: {embeddings_path}\n"
+                    f"FastText embeddings not found at: {config.embeddings_path}\n"
                     f"Download Polish model:\n"
                     f"wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz\n"
                     f"gunzip cc.pl.300.bin.gz"
                 )
-            classifier.load_embeddings(embeddings_path)
+            classifier.load_embeddings(config.embeddings_path)
         elif isinstance(config, TfidfSearchClassifierConfig):
-            logger.info(f"Initializing TfidfSearchClassifier...")
+            logger.info("Initializing TfidfSearchClassifier...")
             classifier = TfidfSearchClassifier(config=config)
         else:
             raise ValueError(f"Unknown config type: {type(config)}")
 
-        logger.info(f"Training {classifier.__class__.__name__}...")
-        classifier.fit(self.dataset.prompts.tolist(), self.dataset.labels.tolist())
-
+        logger.info("Training %s...", classifier.__class__.__name__)
+        classifier.fit(self.dataset)
         return classifier
 
     def train_and_save(
@@ -143,18 +135,15 @@ class Pipeline:
         assert self.dataset is not None
         classifier: SearchClassifier[Any] = self.train(config)
 
-        logger.info(f"Saving model to {output_path}...")
-
-        output_path_obj = Path(output_path)
-        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
-
+        logger.info("Saving model to %s...", output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         classifier.save(output_path)
 
         logger.info("=" * 60)
         logger.info("Training complete!")
-        logger.info(f"Model saved to: {output_path}")
-        logger.info(f"Model type: {classifier.__class__.__name__}")
-        logger.info(f"Training samples: {len(self.dataset.prompts)}")
+        logger.info("Model saved to: %s", output_path)
+        logger.info("Model type: %s", classifier.__class__.__name__)
+        logger.info("Training samples: %s", len(self.dataset.prompts))
 
         return classifier
 
@@ -180,17 +169,19 @@ class Pipeline:
                 "przetlumacz zdanie na angielski",
             ]
 
-        logger.info("Testing predictions:")
+        lines = ["Testing predictions:"]
         for prompt in test_prompts:
             prediction = classifier.predict(prompt)[0]
             probabilities = classifier.predict_proba(prompt)[0]
             confidence = max(probabilities)
             search_label = "SEARCH" if prediction else "NO SEARCH"
-            logger.info(f"  '{prompt}'")
-            logger.info(f"    -> {search_label} (confidence: {confidence:.1%})")
+            lines.append(f"  '{prompt}'")
+            lines.append(f"    -> {search_label} (confidence: {confidence:.1%})")
+
+        logger.info("\n".join(lines))
 
     @staticmethod
-    def load_config(config_path: Path, model_type: ModelType) -> Tuple[SearchClassifierConfig, Path]:
+    def load_config(config_path: Path, model_type: ModelTypeLike) -> Tuple[SearchClassifierConfig, Path]:
         """
         Load configuration for specific model from YAML file.
 
@@ -204,7 +195,7 @@ class Pipeline:
         Raises:
             KeyError: If model_type not found in config
         """
-        with open(config_path, "r") as file:
+        with open(config_path, "r", encoding="utf-8") as file:
             all_configs = yaml.safe_load(file)
 
         models_config = all_configs.get("models", {})
@@ -225,104 +216,3 @@ class Pipeline:
             raise ValueError(f"Unknown model type: {model_type}")
 
         return config, output_path
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Train web search classifier",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Path to YAML config file (default: config.yaml)",
-    )
-    parser.add_argument(
-        "--model-type",
-        type=ModelType,
-        choices=["tfidf", "fasttext"],
-        required=True,
-        help="Type of model to train",
-    )
-    parser.add_argument(
-        "--data-path",
-        type=Path,
-        default=Path("data/train.csv"),
-        help="Path to training data CSV file (default: data/train.csv)",
-    )
-    parser.add_argument(
-        "--text-column",
-        type=str,
-        default="text",
-        help="Name of column containing prompt texts (default: text)",
-    )
-    parser.add_argument(
-        "--label-column",
-        type=str,
-        default="search_required",
-        help="Name of column containing boolean labels (default: search_required)",
-    )
-    parser.add_argument(
-        "--output-path",
-        type=Path,
-        help="Path to save trained model (overrides config)",
-    )
-
-    args = parser.parse_args()
-
-    logger.info("Web Search Classifier - Training Pipeline")
-    logger.info("=" * 60)
-
-    try:
-        logger.info(f"Loading configuration from {args.config}")
-        config, output_path_from_config = Pipeline.load_config(args.config, args.model_type)
-        output_path = Path(args.output_path or output_path_from_config)
-    except FileNotFoundError:
-        logger.warning(f"Config file {args.config} not found, using defaults")
-        output_path = Path(args.output_path or f"models/{args.model_type}_classifier.pkl")
-        if args.model_type == "tfidf":
-            config = TfidfSearchClassifierConfig()
-        elif args.model_type == "fasttext":
-            config = FastTextSearchClassifierConfig()
-        else:
-            logger.error(f"Unknown model type: {args.model_type}")
-            logger.info("Available: tfidf, fasttext")
-            raise ValueError(f"Unknown model type: {args.model_type}")
-    except KeyError as exception:
-        logger.error(str(exception))
-        raise
-
-    data_path = Path(args.data_path)
-    dataset_config = DatasetConfig(
-        path=data_path,
-        extension=data_path.suffix.lstrip("."),
-        prompt_column=args.text_column,
-        label_column=args.label_column,
-    )
-    pipeline = Pipeline(dataset_config=dataset_config)
-
-    try:
-        model = pipeline.train_and_save(config=config, output_path=output_path)
-
-        pipeline.test_predictions(model)
-
-        logger.info("To use the model:")
-        if args.model_type == "tfidf":
-            logger.info(f"  from tfidf import TfidfSearchClassifier")
-            logger.info(f"  model = TfidfSearchClassifier.load('{output_path}')")
-        else:
-            embeddings_path = (
-                config.embeddings_path if isinstance(config, FastTextSearchClassifierConfig) else "cc.pl.300.bin"
-            )
-            logger.info(f"  from ftext import FastTextSearchClassifier")
-            logger.info(f"  model = FastTextSearchClassifier.load('{output_path}', '{embeddings_path}')")
-        logger.info(f"  result = model.predict('your prompt here')")
-
-    except FileNotFoundError as exception:
-        logger.error(f"File not found: {exception}")
-    except Exception as exception:
-        logger.error(f"Unexpected error: {exception}")
-        import traceback
-
-        traceback.print_exc()

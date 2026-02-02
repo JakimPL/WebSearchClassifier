@@ -6,16 +6,18 @@ Fast, lightweight classifier that learns automatically from training data.
 from __future__ import annotations
 
 import pickle
-from pathlib import Path
 from typing import Any, List, Self, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from websearchclassifier.config import TfidfSearchClassifierConfig
+from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model.base import SearchClassifier
+from websearchclassifier.utils import Pathlike, logger
 
 
 class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
@@ -77,26 +79,23 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         self.pipeline = Pipeline([("tfidf", self.vectorizer), ("classifier", self.classifier)])
         self._is_fitted = False
 
-    def fit(self, prompts: List[str], labels: List[bool]) -> TfidfSearchClassifier:
+    def train(self, dataset: Dataset) -> TfidfSearchClassifier:
         """
         Train the classifier on labeled data.
 
         Args:
-            prompts: List of prompt strings
-            labels: List of boolean labels (True = needs search, False = no search)
+            dataset: Dataset containing prompts and labels
 
         Returns:
             self (for method chaining)
         """
-        self._validate_training_data(prompts, labels)
-
-        labels_array = np.array(labels, dtype=int)
-        self.pipeline.fit(prompts, labels_array)
+        logger.info("Training TF-IDF classifier on %s samples...", len(dataset.prompts))
+        self.pipeline.fit(dataset.prompts, dataset.labels)
         self._is_fitted = True
-
+        logger.info("Model trained successfully")
         return self
 
-    def predict(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         """
         Predict whether prompts need web search.
 
@@ -106,13 +105,13 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Returns:
             Boolean array (True = needs search, False = no search)
         """
-        self._check_is_fitted()
-        prompts = self._normalize_input(prompts)
+        features: npt.NDArray[np.str_] = self._get_features(prompts)
+        result = self.pipeline.predict(features)
+        assert isinstance(result, np.ndarray)
+        predictions: npt.NDArray[np.bool_] = result.astype(np.bool_)
+        return predictions
 
-        predictions: np.ndarray = self.pipeline.predict(prompts)
-        return predictions.astype(bool)
-
-    def predict_proba(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict_proba(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
         """
         Predict probability of needing web search.
 
@@ -122,9 +121,8 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Returns:
             Array of shape (n_samples, 2) with probabilities [no_search, needs_search]
         """
-        self._check_is_fitted()
-        unified_prompts: List[str] = self._normalize_input(prompts)
-        proba: np.ndarray = self.pipeline.predict_proba(unified_prompts)
+        features: npt.NDArray[np.str_] = self._get_features(prompts)
+        proba: npt.NDArray[np.floating] = self.pipeline.predict_proba(features)
         return proba
 
     def get_feature_importance(self, top_n: int = 20) -> Tuple[List[str], List[str]]:
@@ -139,16 +137,16 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         """
         self._check_is_fitted()
 
-        feature_names = self.vectorizer.get_feature_names_out()
+        feature_names: npt.NDArray[np.str_] = self.vectorizer.get_feature_names_out()
         coefficients = self.classifier.coef_[0]
         sorted_indices = np.argsort(coefficients)
 
-        top_no_search = [feature_names[i] for i in sorted_indices[:top_n]]
-        top_needs_search = [feature_names[i] for i in sorted_indices[-top_n:][::-1]]
+        top_no_search: List[str] = [str(feature_names[i]) for i in sorted_indices[:top_n]]
+        top_needs_search: List[str] = [str(feature_names[i]) for i in sorted_indices[-top_n:][::-1]]
 
         return top_no_search, top_needs_search
 
-    def save(self, filepath: Path) -> None:
+    def save(self, filepath: Pathlike) -> None:
         """
         Save the trained model to disk.
 
@@ -166,8 +164,10 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         with open(filepath, "wb") as file:
             pickle.dump(save_dict, file)
 
+        logger.info("Classifier saved to %s", filepath)
+
     @classmethod
-    def load(cls, filepath: Path, **kwargs: Any) -> Self:
+    def load(cls, filepath: Pathlike, **kwargs: Any) -> Self:
         """
         Load a trained model from disk.
 
@@ -188,7 +188,12 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         model.pipeline = save_dict["pipeline"]
         model._is_fitted = save_dict["_is_fitted"]
 
+        logger.info("Model loaded from %s", filepath)
         return model
+
+    def _get_features(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.str_]:
+        self._check_is_fitted()
+        return self._normalize_prompts(prompts)
 
     def __repr__(self) -> str:
         return (

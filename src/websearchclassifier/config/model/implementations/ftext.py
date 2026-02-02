@@ -1,14 +1,15 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import field_serializer
 
-from websearchclassifier.config.base import SearchClassifierConfig
+from websearchclassifier.config.model.base import SearchClassifierConfig
 
 
 class FastTextSearchClassifierConfig(SearchClassifierConfig):
     name: str = "fasttext"
-    embeddig_dim: int = 300
-    classifier_type: str = "logistic"
+    embedding_dim: int = 300
+    classifier_type: Literal["logistic", "svm"] = "logistic"
     regularization_strength: float = 1.0
     embeddings_path: Path = Path("cc.en.300.bin")
     random_state: int = 137

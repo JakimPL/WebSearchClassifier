@@ -1,20 +1,20 @@
-"""
-FastText-based binary classifier for web search decision.
-Uses pre-trained Polish FastText embeddings for semantic understanding.
-"""
-
 from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Any, List, Optional, Self, Union
+from typing import Any, Optional, Self, Union
 
+import fasttext
 import numpy as np
+import numpy.typing as npt
+from fasttext.FastText import _FastText
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 
 from websearchclassifier.config import FastTextSearchClassifierConfig
+from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model.base import SearchClassifier
+from websearchclassifier.utils import Pathlike, logger
 
 
 class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig]):
@@ -44,18 +44,23 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
     def __init__(
         self,
         config: FastTextSearchClassifierConfig,
+        embeddings_path: Optional[Pathlike] = None,
     ):
         """
         Initialize the classifier.
 
         Args:
             config: Configuration object with all parameters
+            embeddings_path: Optional path to FastText .bin file to load immediately
         """
         super().__init__(config)
 
-        self.fasttext_model = None
-        self._is_embeddings_loaded = False
+        self.fasttext_model: Optional[_FastText] = None
+        self._has_embeddings_loaded = False
         self._is_fitted = False
+
+        if embeddings_path is not None:
+            self.load_embeddings(embeddings_path)
 
         if config.classifier_type == "logistic":
             self.classifier = LogisticRegression(
@@ -74,7 +79,7 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         else:
             raise ValueError(f"Unknown classifier_type: {config.classifier_type}. Use 'logistic' or 'svm'")
 
-    def load_embeddings(self, model_path: Path) -> FastTextSearchClassifier:
+    def load_embeddings(self, model_path: Pathlike) -> FastTextSearchClassifier:
         """
         Load pre-trained FastText embeddings.
 
@@ -82,54 +87,29 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz
 
         Args:
-            model_path: Path to FastText .bin file
+            model_path: Pathlike to FastText .bin file.
 
         Returns:
-            self (for method chaining)
+            self (for method chaining).
         """
-        import fasttext
 
-        if not Path(model_path).exists():
+        path: Path = Path(model_path)
+        if not path.exists():
             raise FileNotFoundError(
-                f"FastText model not found at: {model_path}\n"
+                f"FastText model not found at: {str(model_path)}\n"
                 f"Download Polish model:\n"
                 f"wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz\n"
                 f"gunzip cc.pl.300.bin.gz"
             )
 
-        print(f"Loading FastText embeddings from {model_path}...")
-        self.fasttext_model = fasttext.load_model(str(model_path))
-        self._is_embeddings_loaded = True
-        print(f"✓ Loaded embeddings (dim={self.fasttext_model.get_dimension()})")
+        logger.info("Loading FastText embeddings from %s...", path)
+        self.fasttext_model = fasttext.load_model(str(path))
+        self._has_embeddings_loaded = True
+        logger.info("Loaded embeddings (dim=%s)", self.fasttext_model.get_dimension())
 
         return self
 
-    def load_embeddings_gensim(self, model_path: Path) -> FastTextSearchClassifier:
-        """
-        Load pre-trained FastText embeddings using Gensim (alternative method).
-
-        Can load smaller/custom FastText models trained with Gensim.
-
-        Args:
-            model_path: Path to Gensim FastText model
-
-        Returns:
-            self (for method chaining)
-        """
-        try:
-            from gensim.models import FastText
-        except ImportError:
-            raise ImportError("gensim library not installed. Install with: pip install gensim")
-
-        print(f"Loading FastText embeddings (Gensim) from {model_path}...")
-        self.fasttext_model = FastText.load(model_path)
-        self._is_embeddings_loaded = True
-        self._use_gensim = True
-        print(f"✓ Loaded embeddings (dim={self.fasttext_model.wv.vector_size})")
-
-        return self
-
-    def _encode_text(self, text: str) -> np.ndarray:
+    def _encode_text(self, text: str) -> npt.NDArray[np.floating]:
         """
         Convert text to vector representation using FastText embeddings.
 
@@ -142,22 +122,20 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
             Vector representation of shape (embedding_dim,)
         """
         self._check_embeddings_loaded()
+        assert self.fasttext_model is not None
 
         words = text.lower().split()
-
         if len(words) == 0:
-            return np.zeros(self.config.embeddig_dim)
+            return np.zeros(self.config.embedding_dim)
 
-        if hasattr(self.fasttext_model, "get_word_vector"):
-            vectors = [self.fasttext_model.get_word_vector(word) for word in words]
-        else:
-            vectors = [self.fasttext_model.wv[word] for word in words if word in self.fasttext_model.wv]
-            if len(vectors) == 0:
-                return np.zeros(self.embedding_dim)
+        vectors = [self.fasttext_model.get_word_vector(word) for word in words]
+        if len(vectors) == 0:
+            return np.zeros(self.config.embedding_dim)
 
-        return np.mean(vectors, axis=0)
+        array: npt.NDArray[np.floating] = np.mean(vectors, axis=0)
+        return array
 
-    def _encode_batch(self, texts: List[str]) -> np.ndarray:
+    def _encode_batch(self, texts: Prompts) -> npt.NDArray[np.floating]:
         """
         Encode multiple texts to vector representations.
 
@@ -169,66 +147,58 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         """
         return np.array([self._encode_text(text) for text in texts])
 
-    def fit(self, prompts: List[str], labels: List[bool]) -> FastTextSearchClassifier:
+    def train(self, dataset: Dataset) -> FastTextSearchClassifier:
         """
         Train the classifier on labeled data.
 
         Args:
-            prompts: List of prompt strings
-            labels: List of boolean labels (True = needs search, False = no search)
+            dataset: Dataset object containing prompts and labels
 
         Returns:
             self (for method chaining)
         """
         self._check_embeddings_loaded()
-        self._validate_training_data(prompts, labels)
 
-        print(f"Encoding {len(prompts)} prompts...")
-        features = self._encode_batch(prompts)
-        labels_array = np.array(labels, dtype=int)
+        logger.info("Encoding %s prompts...", len(dataset.prompts))
+        features = self._encode_batch(dataset.prompts)
+        labels_array = np.array(dataset.labels, dtype=np.bool_)
 
-        print(f"Training {self.config.classifier_type} classifier...")
+        logger.info("Training %s classifier...", self.config.classifier_type)
         self.classifier.fit(features, labels_array)
         self._is_fitted = True
-        print("✓ Model trained")
+        logger.info("Model trained successfully")
 
         return self
 
-    def predict(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         """
         Predict whether prompts need web search.
 
         Args:
-            prompts: Single prompt string or list of prompts
+            prompts: Single prompt string or list of prompts.
 
         Returns:
             Boolean array (True = needs search, False = no search)
         """
-        self._check_is_fitted()
-        prompts = self._normalize_input(prompts)
+        features = self._get_features(prompts)
+        predictions: np.ndarray = self.classifier.predict(features)
+        return predictions.astype(np.bool_)
 
-        features = self._encode_batch(prompts)
-        predictions = self.classifier.predict(features)
-        return predictions.astype(bool)
-
-    def predict_proba(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict_proba(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
         """
         Predict probability of needing web search.
 
         Args:
-            prompts: Single prompt string or list of prompts
+            prompts: Single prompt string or list of prompts.
 
         Returns:
             Array of shape (n_samples, 2) with probabilities [no_search, needs_search]
         """
-        self._check_is_fitted()
-        unified_prompts: List[str] = self._normalize_input(prompts)
-
-        features = self._encode_batch(unified_prompts)
-        proba: np.ndarray = self.classifier.predict_proba(features)
+        features = self._get_features(prompts)
+        proba: npt.NDArray[np.floating] = self.classifier.predict_proba(features)
         return proba
 
-    def save(self, filepath: Path) -> None:
+    def save(self, filepath: Pathlike) -> None:
         """
         Save the trained classifier (without embeddings).
 
@@ -249,11 +219,11 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         with open(filepath, "wb") as file:
             pickle.dump(save_dict, file)
 
-        print(f"✓ Classifier saved to {filepath}")
-        print("⚠ Remember: FastText embeddings NOT included. Load them separately.")
+        logger.info("Classifier saved to %s", filepath)
+        logger.warning("FastText embeddings NOT included in save file. Load them separately when loading model.")
 
     @classmethod
-    def load(cls, filepath: Path, embeddings_path: Optional[Path] = None, **kwargs: Any) -> Self:
+    def load(cls, filepath: Pathlike, embeddings_path: Optional[Pathlike] = None, **kwargs: Any) -> Self:
         """
         Load a trained classifier and embeddings.
 
@@ -275,10 +245,19 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         if embeddings_path:
             model.load_embeddings(embeddings_path)
         else:
-            print("⚠ Warning: Embeddings not loaded. Call load_embeddings() before using the model.")
+            logger.warning("Embeddings not loaded. Call load_embeddings() before using the model.")
 
-        print(f"✓ Model loaded from {filepath}")
+        logger.info("Model loaded from %s", filepath)
         return model
+
+    def _get_features(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
+        self._check_is_fitted()
+        prompts = self._normalize_prompts(prompts)
+        return self._encode_batch(prompts)
+
+    @property
+    def has_embeddings_loaded(self) -> bool:
+        return self._has_embeddings_loaded
 
     def _check_embeddings_loaded(self) -> None:
         """
@@ -287,7 +266,7 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         Raises:
             RuntimeError: If embeddings haven't been loaded
         """
-        if not self._is_embeddings_loaded:
+        if not self._has_embeddings_loaded:
             raise RuntimeError(
                 "Embeddings not loaded. Call load_embeddings() first.\n"
                 "Download Polish FastText: wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz"
@@ -296,10 +275,10 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
     def __repr__(self) -> str:
         return (
             f"FastTextSearchClassifier("
-            f"embedding_dim={self.config.embeddig_dim}, "
+            f"embedding_dim={self.config.embedding_dim}, "
             f"classifier={self.config.classifier_type}, "
             f"regularization={self.config.regularization_strength}, "
-            f"embeddings_loaded={self._is_embeddings_loaded}, "
+            f"embeddings_loaded={self._has_embeddings_loaded}, "
             f"fitted={self._is_fitted}"
             f")"
         )

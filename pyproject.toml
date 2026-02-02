@@ -18,6 +18,9 @@ dev = [
     "pytest-cov==7.0.0",
 ]
 
+[project.scripts]
+websearchclassifier = "websearchclassifier.__main__:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

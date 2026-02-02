@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from websearchclassifier.config.base import SearchClassifierConfig
+from websearchclassifier.config.model.base import SearchClassifierConfig
 
 
 class TfidfSearchClassifierConfig(SearchClassifierConfig):

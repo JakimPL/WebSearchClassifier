@@ -1,7 +1,9 @@
 from typing import NamedTuple, Optional
 
+from websearchclassifier.dataset.types import Label, Prediction, Prompt
+
 
 class DatasetItem(NamedTuple):
-    prompt: str
-    search: bool
-    confidence: Optional[float] = None
+    prompt: Prompt
+    search: Label
+    confidence: Optional[Prediction] = None

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generic, List, Self, TypeVar, Union
+from typing import Any, Generic, Optional, Self, TypeVar, Union
 
 import numpy as np
+import numpy.typing as npt
 
 from websearchclassifier.config import SearchClassifierConfig
+from websearchclassifier.dataset import Dataset, DatasetLike, Labels, Prompts
 
 ConfigT = TypeVar("ConfigT", bound=SearchClassifierConfig)
 
@@ -29,21 +31,42 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         self._is_fitted: bool = False
         self.config = config
 
-    @abstractmethod
-    def fit(self, prompts: List[str], labels: List[bool]) -> Self:
+    def fit(
+        self,
+        dataset: Optional[DatasetLike] = None,
+        prompts: Optional[Union[str, Prompts]] = None,
+        labels: Optional[Union[bool, Labels]] = None,
+    ) -> Self:
         """
         Train the classifier on labeled data.
 
+        Accepts either prompts and labels directly, or a dataset object.
+
         Args:
-            prompts: List of prompt strings
-            labels: List of boolean labels (True = needs search, False = no search)
+            dataset: Dataset containing prompts and labels.
+            prompts: List of prompt strings.
+            labels: List of boolean labels (True = needs search, False = no search).
+
+        Returns:
+            self (for method chaining)
+        """
+        dataset = Dataset.create(dataset=dataset, prompts=prompts, labels=labels)
+        return self.train(dataset)
+
+    @abstractmethod
+    def train(self, dataset: Dataset) -> Self:
+        """
+        Train the classifier on the provided dataset.
+
+        Args:
+            dataset: Dataset containing prompts and labels
 
         Returns:
             self (for method chaining)
         """
 
     @abstractmethod
-    def predict(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         """
         Predict whether prompts need web search.
 
@@ -55,7 +78,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         """
 
     @abstractmethod
-    def predict_proba(self, prompts: Union[str, List[str]]) -> np.ndarray:
+    def predict_proba(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
         """
         Predict probability of needing web search.
 
@@ -89,9 +112,19 @@ class SearchClassifier(ABC, Generic[ConfigT]):
             Loaded classifier instance
         """
 
-    def _check_is_fitted(self) -> None:
+    @property
+    def is_fitted(self) -> bool:
         """
         Check if the model has been fitted.
+
+        Returns:
+            True if the model has been fitted, False otherwise.
+        """
+        return self._is_fitted
+
+    def _check_is_fitted(self) -> None:
+        """
+        Validate that the model has been fitted.
 
         Raises:
             RuntimeError: If model has not been fitted yet
@@ -99,7 +132,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         if not self._is_fitted:
             raise RuntimeError("Model has not been fitted yet. Call fit() first.")
 
-    def _normalize_input(self, prompts: Union[str, List[str]]) -> List[str]:
+    def _normalize_prompts(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.str_]:
         """
         Normalize input to always be a list of strings.
 
@@ -109,24 +142,4 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         Returns:
             List of prompt strings
         """
-        if isinstance(prompts, str):
-            return [prompts]
-
-        return prompts
-
-    def _validate_training_data(self, prompts: List[str], labels: List[bool]) -> None:
-        """
-        Validate training data before fitting.
-
-        Args:
-            prompts: List of prompt strings
-            labels: List of boolean labels
-
-        Raises:
-            ValueError: If data is invalid
-        """
-        if len(prompts) != len(labels):
-            raise ValueError(f"prompts and labels must have same length: {len(prompts)} != {len(labels)}")
-
-        if len(prompts) == 0:
-            raise ValueError("Cannot fit on empty dataset")
+        return Dataset.normalize_prompts(prompts)
