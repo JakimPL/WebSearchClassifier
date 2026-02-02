@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import List, Optional, Self, Sequence, Tuple, TypeAlias, Union
+from typing import Dict, List, Optional, Self, Sequence, Tuple, TypeAlias, Union
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from sklearn.utils import compute_class_weight
 
 from websearchclassifier.config import DatasetConfig
+from websearchclassifier.config.dataset.weights import WeightingScheme
 from websearchclassifier.dataset.format import DatasetFormat
 from websearchclassifier.dataset.item import DatasetItem
 from websearchclassifier.dataset.types import (
@@ -306,6 +308,41 @@ class Dataset(BaseModel):
             return None
 
         return np.array([confidence] if is_prediction(confidence) else confidence, dtype=np.float16)
+
+    def compute_class_weights(self) -> Dict[int, float]:
+        """Compute class weights based on the selected weighting scheme.
+
+        Args:
+            labels: A list or array of class labels.
+
+        Returns:
+            A dictionary mapping class labels to their computed weights.
+        """
+        weights: Dict[int, float]
+        classes = np.array([0, 1], dtype=np.int8)
+        array: npt.NDArray[np.int8] = np.array(self.labels, dtype=np.int8)
+        match self.config.weighting_scheme:
+            case WeightingScheme.NONE:
+                weights = {label: 1.0 for label in classes}
+
+            case WeightingScheme.BALANCED:
+                class_weight = compute_class_weight(
+                    class_weight="balanced",
+                    classes=classes,
+                    y=array.astype(int),
+                )
+                weights = {0: class_weight[0], 1: class_weight[1]}
+
+            case WeightingScheme.INVERSE:
+                counts = np.bincount(array.astype(int))
+                total = len(array)
+                class_weight = total / (2 * counts)
+                weights = {0: class_weight[0], 1: class_weight[1]}
+
+            case _:
+                raise ValueError(f"Unknown weighting scheme: {self.config.weighting_scheme}")
+
+        return weights
 
 
 DatasetLike: TypeAlias = Union[pd.DataFrame, Dataset]

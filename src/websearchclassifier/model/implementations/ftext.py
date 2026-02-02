@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Any, Optional, Self, Union
+from typing import Any, Dict, Optional, Self, Union
 
 import fasttext
 import numpy as np
@@ -79,7 +79,34 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         else:
             raise ValueError(f"Unknown classifier_type: {config.classifier_type}. Use 'logistic' or 'svm'")
 
-    def load_embeddings(self, model_path: Pathlike) -> FastTextSearchClassifier:
+    def _apply_class_weights(
+        self,
+        weights: Dict[int, float],
+        labels: npt.NDArray[np.bool_],
+    ) -> Dict[str, Any]:
+        """
+        Apply class weights based on classifier type.
+
+        Args:
+            weights: Dictionary mapping class indices to weights
+            labels: Boolean array of labels
+
+        Returns:
+            Dict with fit kwargs - empty for logistic, sample_weight for svm
+        """
+        fit_kwargs: Dict[str, Any] = {}
+        if self.config.classifier_type == "logistic":
+            logger.info("Using class weights: %s", weights)
+            self.classifier.set_params(class_weight=weights)
+
+        else:
+            sample_weights = np.array([weights[int(label)] for label in labels], dtype=np.float64)
+            logger.info("Using sample weights (mean: %.3f)", sample_weights.mean())
+            fit_kwargs["sample_weight"] = sample_weights
+
+        return fit_kwargs
+
+    def load_embeddings(self, model_path: Pathlike) -> Self:
         """
         Load pre-trained FastText embeddings.
 
@@ -147,12 +174,13 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         """
         return np.array([self._encode_text(text) for text in texts])
 
-    def train(self, dataset: Dataset) -> FastTextSearchClassifier:
+    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
         """
         Train the classifier on labeled data.
 
         Args:
             dataset: Dataset object containing prompts and labels
+            weights: Dictionary mapping class indices to weights
 
         Returns:
             self (for method chaining)
@@ -161,10 +189,10 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
 
         logger.info("Encoding %s prompts...", len(dataset.prompts))
         features = self._encode_batch(dataset.prompts)
-        labels_array = np.array(dataset.labels, dtype=np.bool_)
 
         logger.info("Training %s classifier...", self.config.classifier_type)
-        self.classifier.fit(features, labels_array)
+        fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
+        self.classifier.fit(features, dataset.labels, **fit_kwargs)
         self._is_fitted = True
         logger.info("Model trained successfully")
 

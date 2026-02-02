@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generic, Optional, Self, TypeVar, Union
+from typing import Any, Dict, Generic, Optional, Self, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -51,10 +51,11 @@ class SearchClassifier(ABC, Generic[ConfigT]):
             self (for method chaining)
         """
         dataset = Dataset.create(dataset=dataset, prompts=prompts, labels=labels)
-        return self.train(dataset)
+        weights = dataset.compute_class_weights()
+        return self.train(dataset, weights)
 
     @abstractmethod
-    def train(self, dataset: Dataset) -> Self:
+    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
         """
         Train the classifier on the provided dataset.
 
@@ -143,3 +144,50 @@ class SearchClassifier(ABC, Generic[ConfigT]):
             List of prompt strings
         """
         return Dataset.normalize_prompts(prompts)
+
+    def prepare_sample_weights(
+        self,
+        weights: Dict[int, float],
+        labels: npt.NDArray[np.bool_],
+    ) -> Dict[str, Any]:
+        """
+        Prepare sample weights for training.
+
+        This method performs common checks and delegates to implementation-specific
+        logic. Implementations configure the classifier and return kwargs for fit().
+
+        Args:
+            weights: Dictionary mapping class indices to weights
+            labels: Boolean array of labels
+
+        Returns:
+            Dictionary of kwargs to pass to fit() method (empty dict if no weights)
+        """
+        if not self.config.use_class_weights:
+            return {}
+
+        if all(abs(w - 1.0) < 1e-9 for w in weights.values()):
+            return {}
+
+        return self._apply_class_weights(weights, labels)
+
+    @abstractmethod
+    def _apply_class_weights(
+        self,
+        weights: Dict[int, float],
+        labels: npt.NDArray[np.bool_],
+    ) -> Dict[str, Any]:
+        """
+        Apply class weights in implementation-specific way.
+
+        Implementations should:
+        1. Configure the classifier (e.g., set_params for class_weight)
+        2. Return kwargs dict for fit() method (e.g., {"sample_weight": array})
+
+        Args:
+            weights: Dictionary mapping class indices to weights
+            labels: Boolean array of labels (needed for sample_weight conversion)
+
+        Returns:
+            Dictionary of kwargs to pass to fit() method
+        """

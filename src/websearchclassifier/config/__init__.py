@@ -1,4 +1,5 @@
 from websearchclassifier.config.dataset.dataset import DatasetConfig
+from websearchclassifier.config.dataset.weights import WeightingScheme, WeightingSchemeLike
 from websearchclassifier.config.evaluation.base import EvaluatorConfig
 from websearchclassifier.config.evaluation.implementations.cross_validation import CrossValidationEvaluatorConfig
 from websearchclassifier.config.model.base import SearchClassifierConfig
@@ -12,4 +13,6 @@ __all__ = [
     "FastTextSearchClassifierConfig",
     "EvaluatorConfig",
     "CrossValidationEvaluatorConfig",
+    "WeightingScheme",
+    "WeightingSchemeLike",
 ]

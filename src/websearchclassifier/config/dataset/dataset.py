@@ -4,16 +4,18 @@ from typing import Optional, Union, cast
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from websearchclassifier.config.dataset.path import DatasetPathConfig
+from websearchclassifier.config.dataset.weights import WeightingScheme, WeightingSchemeLike
 
 
 class DatasetConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid", frozen=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid", frozen=True, use_enum_values=True)
 
     prompt_column: str = "prompt"
     label_column: str = "label"
     confidence_column: str = "confidence"
     dataset_path: Optional[Union[Path, DatasetPathConfig]] = None
     decimal_separator: str = ","
+    weighting_scheme: WeightingSchemeLike = WeightingScheme.INVERSE
 
     @field_validator("dataset_path", mode="before")
     def validate_dataset_path(cls, value: Optional[Union[Path, DatasetPathConfig]]) -> Optional[DatasetPathConfig]:

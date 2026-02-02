@@ -6,7 +6,7 @@ Fast, lightweight classifier that learns automatically from training data.
 from __future__ import annotations
 
 import pickle
-from typing import Any, List, Self, Tuple, Union
+from typing import Any, Dict, List, Self, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -79,18 +79,39 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         self.pipeline = Pipeline([("tfidf", self.vectorizer), ("classifier", self.classifier)])
         self._is_fitted = False
 
-    def train(self, dataset: Dataset) -> TfidfSearchClassifier:
+    def _apply_class_weights(
+        self,
+        weights: Dict[int, float],
+        labels: npt.NDArray[np.bool_],
+    ) -> Dict[str, Any]:
+        """
+        Apply class weights for LogisticRegression.
+
+        Args:
+            weights: Dictionary mapping class indices to weights
+            labels: Boolean array of labels (unused for class_weight approach)
+
+        Returns:
+            Empty dict (weights applied via set_params)
+        """
+        logger.info("Using class weights: %s", weights)
+        self.classifier.set_params(class_weight=weights)
+        return {}
+
+    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
         """
         Train the classifier on labeled data.
 
         Args:
             dataset: Dataset containing prompts and labels
+            weights: Dictionary mapping class indices to weights
 
         Returns:
             self (for method chaining)
         """
         logger.info("Training TF-IDF classifier on %s samples...", len(dataset.prompts))
-        self.pipeline.fit(dataset.prompts, dataset.labels)
+        fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
+        self.pipeline.fit(dataset.prompts, dataset.labels, **fit_kwargs)
         self._is_fitted = True
         logger.info("Model trained successfully")
         return self
