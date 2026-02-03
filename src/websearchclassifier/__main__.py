@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from websearchclassifier import (
     DatasetConfig,
@@ -11,6 +11,7 @@ from websearchclassifier import (
     SearchClassifierConfig,
     TfidfSearchClassifierConfig,
 )
+from websearchclassifier.config import ClassifierType, HerBERTSearchClassifierConfig
 from websearchclassifier.utils import logger
 
 
@@ -34,9 +35,16 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--model-type",
         type=ModelType,
-        choices=["tfidf", "fasttext"],
+        choices=list(ModelType),
         required=True,
         help="Type of model to train",
+    )
+    parser.add_argument(
+        "--classifier-type",
+        type=ClassifierType,
+        choices=list(ClassifierType),
+        required=True,
+        help="Type of classifier to train",
     )
     parser.add_argument(
         "--data-path",
@@ -68,14 +76,16 @@ def parse_arguments() -> argparse.Namespace:
 def load_configuration(
     config_path: Path,
     model_type: ModelType,
-    output_path_override: Path | None = None,
+    classifier_type: ClassifierType,
+    output_path_override: Optional[Path] = None,
 ) -> Tuple[SearchClassifierConfig, Path]:
     """
     Load model configuration from YAML file or use defaults.
 
     Args:
         config_path: Path to YAML configuration file.
-        model_type: Type of model to train (`tfidf` or `fasttext`).
+        model_type: Type of model to train (`tfidf`, `fasttext`, or `herbert`).
+        classifier_type: Type of classifier to train (`logistic_regression` or `svm`).
         output_path_override: Optional path to override config output path.
 
     Returns:
@@ -87,7 +97,7 @@ def load_configuration(
     """
     try:
         logger.info("Loading configuration from %s", config_path)
-        config, output_path_from_config = Pipeline.load_config(config_path, model_type)
+        config, output_path_from_config = Pipeline.load_config(config_path, model_type, classifier_type)
         output_path = Path(output_path_override or output_path_from_config)
         return config, output_path
 
@@ -96,10 +106,12 @@ def load_configuration(
         output_path = Path(output_path_override or f"models/{model_type}_classifier.pkl")
 
         match model_type:
-            case "tfidf":
+            case ModelType.TFIDF:
                 config = TfidfSearchClassifierConfig()
-            case "fasttext":
+            case ModelType.FASTTEXT:
                 config = FastTextSearchClassifierConfig()
+            case ModelType.HERBERT:
+                config = HerBERTSearchClassifierConfig()
             case _:
                 logger.error("Unknown model type: %s", model_type)
                 logger.info("Available: tfidf, fasttext")
@@ -112,7 +124,6 @@ def run_pipeline(
     pipeline: Pipeline,
     config: SearchClassifierConfig,
     output_path: Path,
-    model_type: ModelType,
 ) -> None:
     """
     Execute training pipeline and display usage instructions.
@@ -121,7 +132,6 @@ def run_pipeline(
         pipeline: Initialized pipeline instance.
         config: Model configuration.
         output_path: Path to save trained model.
-        model_type: Type of model being trained.
 
     Raises:
         FileNotFoundError: If required files are missing
@@ -130,7 +140,6 @@ def run_pipeline(
     try:
         model = pipeline.train_and_save(config=config, output_path=output_path)
         pipeline.test_predictions(model)
-        _display_usage_instructions(model_type, output_path, config)
 
     except FileNotFoundError as exception:
         logger.error("File not found: %s", exception)
@@ -138,35 +147,6 @@ def run_pipeline(
     except Exception as exception:
         logger.error("Unexpected error: %s", exception)
         raise
-
-
-def _display_usage_instructions(
-    model_type: ModelType,
-    output_path: Path,
-    config: SearchClassifierConfig,
-) -> None:
-    """
-    Display instructions for loading and using the trained model.
-
-    Args:
-        model_type: Type of model trained.
-        output_path: Path where model was saved.
-        config: Model configuration used.
-    """
-    logger.info("To use the model:")
-
-    match model_type:
-        case "tfidf":
-            logger.info("  from tfidf import TfidfSearchClassifier")
-            logger.info("  model = TfidfSearchClassifier.load('%s')", output_path)
-        case "fasttext":
-            embeddings_path = (
-                config.embeddings_path if isinstance(config, FastTextSearchClassifierConfig) else "cc.pl.300.bin"
-            )
-            logger.info("  from ftext import FastTextSearchClassifier")
-            logger.info("  model = FastTextSearchClassifier.load('%s', '%s')", output_path, embeddings_path)
-
-    logger.info("  result = model.predict('your prompt here')")
 
 
 def main() -> None:
@@ -184,6 +164,7 @@ def main() -> None:
         config, output_path = load_configuration(
             config_path=args.config,
             model_type=args.model_type,
+            classifier_type=args.classifier_type,
             output_path_override=args.output_path,
         )
     except (ValueError, KeyError) as exception:
@@ -195,11 +176,10 @@ def main() -> None:
         prompt_column=args.text_column,
         label_column=args.label_column,
     )
-    pipeline = Pipeline(dataset_config=dataset_config)
 
+    pipeline = Pipeline(dataset_config=dataset_config)
     run_pipeline(
         pipeline=pipeline,
         config=config,
         output_path=output_path,
-        model_type=args.model_type,
     )

@@ -8,4 +8,4 @@ class CrossValidationEvaluatorConfig(EvaluatorConfig):
 
     folds: int = Field(default=5, ge=2)
     stratify: bool = True
-    random_seed: int = 137
+    random_seed: int = 13

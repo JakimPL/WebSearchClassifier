@@ -6,14 +6,24 @@ from typing import Any, List, Optional, Tuple
 import yaml
 
 from websearchclassifier.config import (
+    ClassifierType,
+    ClassifierTypeLike,
     DatasetConfig,
     FastTextSearchClassifierConfig,
+    HerBERTSearchClassifierConfig,
+    ModelType,
+    ModelTypeLike,
     SearchClassifierConfig,
     TfidfSearchClassifierConfig,
 )
 from websearchclassifier.dataset import Dataset
-from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TfidfSearchClassifier
-from websearchclassifier.pipeline.types import ModelTypeLike
+from websearchclassifier.model import (
+    FastTextSearchClassifier,
+    HerBERTSearchClassifier,
+    SearchClassifier,
+    TfidfSearchClassifier,
+    get_model_config_class,
+)
 from websearchclassifier.utils import logger
 
 
@@ -71,35 +81,39 @@ class Pipeline:
         Train a classifier on loaded data.
 
         Args:
-            config: Configuration object for the classifier
+            config: Configuration object for the classifier.
 
         Returns:
-            Trained classifier instance
+            Trained classifier instance.
 
         Raises:
-            RuntimeError: If data hasn't been loaded yet
+            RuntimeError: If data hasn't been loaded yet.
         """
         if self.dataset is None:
             raise RuntimeError("Data not loaded. Call load_data() first.")
 
         classifier: SearchClassifier[Any]
-        if isinstance(config, FastTextSearchClassifierConfig):
-            logger.info("Initializing FastTextSearchClassifier...")
-            classifier = FastTextSearchClassifier(config=config)
+        match config:
+            case FastTextSearchClassifierConfig():
+                logger.info("Initializing FastTextSearchClassifier...")
+                classifier = FastTextSearchClassifier(config=config)
 
-            if not config.embeddings_path.exists():
-                raise FileNotFoundError(
-                    f"FastText embeddings not found at: {config.embeddings_path}\n"
-                    f"Download Polish model:\n"
-                    f"wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz\n"
-                    f"gunzip cc.pl.300.bin.gz"
-                )
-            classifier.load_embeddings(config.embeddings_path)
-        elif isinstance(config, TfidfSearchClassifierConfig):
-            logger.info("Initializing TfidfSearchClassifier...")
-            classifier = TfidfSearchClassifier(config=config)
-        else:
-            raise ValueError(f"Unknown config type: {type(config)}")
+                if not config.embeddings_path.exists():
+                    raise FileNotFoundError(
+                        f"FastText embeddings not found at: {config.embeddings_path}\n"
+                        f"Download Polish model:\n"
+                        f"wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz\n"
+                        f"gunzip cc.pl.300.bin.gz"
+                    )
+                classifier.load_embeddings(config.embeddings_path)
+            case TfidfSearchClassifierConfig():
+                logger.info("Initializing TfidfSearchClassifier...")
+                classifier = TfidfSearchClassifier(config=config)
+            case HerBERTSearchClassifierConfig():
+                logger.info("Initializing HerBERTSearchClassifier...")
+                classifier = HerBERTSearchClassifier(config=config)
+            case _:
+                raise ValueError(f"Unknown config type: {type(config)}")
 
         logger.info("Training %s...", classifier.__class__.__name__)
         classifier.fit(self.dataset)
@@ -117,14 +131,14 @@ class Pipeline:
         and model persistence.
 
         Args:
-            config: Configuration object for the classifier
-            output_path: Path to save the trained model
+            config: Configuration object for the classifier.
+            output_path: Path to save the trained model.
 
         Returns:
-            Trained classifier instance
+            Trained classifier instance.
 
         Example:
-            >>> dataset_config = DatasetConfig(path=Path("data/train.csv"), extension="csv", prompt_column="text", label_column="search_required")
+            >>> dataset_config = DatasetConfig(path=Path("data/train.csv"))
             >>> pipeline = Pipeline(dataset_config)
             >>> config = TfidfSearchClassifierConfig(max_features=3000)
             >>> model = pipeline.train_and_save(config, "tfidf_model.pkl")
@@ -181,13 +195,18 @@ class Pipeline:
         logger.info("\n".join(lines))
 
     @staticmethod
-    def load_config(config_path: Path, model_type: ModelTypeLike) -> Tuple[SearchClassifierConfig, Path]:
+    def load_config(
+        config_path: Path,
+        model_type: ModelTypeLike,
+        classifier_type: ClassifierTypeLike,
+    ) -> Tuple[SearchClassifierConfig, Path]:
         """
         Load configuration for specific model from YAML file.
 
         Args:
             config_path: Path to YAML config file
-            model_type: Model type key (e.g., 'tfidf', 'fasttext')
+            model_type: Model type key (e.g. `tfidf`, `fasttext`, `herbert`)
+            classifier_type: Classifier type key (e.g. `logistic_regression`, `svm`)
 
         Returns:
             SearchClassifierConfig instance and output path
@@ -207,12 +226,17 @@ class Pipeline:
         output_directory = Path(all_configs.get("output_directory", "models/"))
         output_path = output_directory / f"{model_type}_classifier.pkl"
 
-        config: SearchClassifierConfig
-        if model_type == "tfidf":
-            config = TfidfSearchClassifierConfig(**model_config_dict)
-        elif model_type == "fasttext":
-            config = FastTextSearchClassifierConfig(**model_config_dict)
-        else:
-            raise ValueError(f"Unknown model type: {model_type}")
+        classifier_config_dict = all_configs.get("classifiers", {})
+        if classifier_type not in classifier_config_dict:
+            available = ", ".join(classifier_config_dict.keys())
+            raise KeyError(f"Classifier type '{classifier_type}' not found in config. " f"Available: {available}")
 
+        classifier_type = ClassifierType(classifier_type)
+
+        config: SearchClassifierConfig
+        model_type = ModelType(model_type)
+        config = get_model_config_class(model_type)(
+            **model_config_dict,
+            classifier_config=classifier_config_dict[classifier_type],
+        )
         return config, output_path

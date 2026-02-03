@@ -2,7 +2,7 @@ from enum import StrEnum
 
 import pandas as pd
 
-from websearchclassifier.config.dataset.dataset import DatasetConfig
+from websearchclassifier.config import DatasetConfig
 
 
 class DatasetFormat(StrEnum):

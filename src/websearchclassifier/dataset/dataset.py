@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Dict, List, Optional, Self, Sequence, Tuple, TypeAlias, Union
+from typing import List, Optional, Self, Sequence, Tuple, TypeAlias, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -9,8 +9,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sklearn.utils import compute_class_weight
 
-from websearchclassifier.config import DatasetConfig
-from websearchclassifier.config.dataset.weights import WeightingScheme
+from websearchclassifier.config import DatasetConfig, WeightingScheme
 from websearchclassifier.dataset.format import DatasetFormat
 from websearchclassifier.dataset.item import DatasetItem
 from websearchclassifier.dataset.types import (
@@ -22,7 +21,7 @@ from websearchclassifier.dataset.types import (
     is_prediction,
     is_prompt,
 )
-from websearchclassifier.utils import Bool, String
+from websearchclassifier.utils import Bool, String, Weights
 
 
 class Dataset(BaseModel):
@@ -309,7 +308,7 @@ class Dataset(BaseModel):
 
         return np.array([confidence] if is_prediction(confidence) else confidence, dtype=np.float16)
 
-    def compute_class_weights(self) -> Dict[int, float]:
+    def compute_class_weights(self) -> Weights:
         """Compute class weights based on the selected weighting scheme.
 
         Args:
@@ -318,7 +317,7 @@ class Dataset(BaseModel):
         Returns:
             A dictionary mapping class labels to their computed weights.
         """
-        weights: Dict[int, float]
+        weights: Weights
         classes = np.array([0, 1], dtype=np.int8)
         array: npt.NDArray[np.int8] = np.array(self.labels, dtype=np.int8)
         match self.config.weighting_scheme:

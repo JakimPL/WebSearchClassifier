@@ -2,19 +2,17 @@ from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Any, Dict, Optional, Self, Union
+from typing import Any, Optional, Self, Union
 
 import fasttext
 import numpy as np
 import numpy.typing as npt
 from fasttext.FastText import _FastText
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 
 from websearchclassifier.config import FastTextSearchClassifierConfig
 from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model.base import SearchClassifier
-from websearchclassifier.utils import Pathlike, logger
+from websearchclassifier.utils import Pathlike, Weights, logger
 
 
 class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig]):
@@ -50,61 +48,21 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         Initialize the classifier.
 
         Args:
-            config: Configuration object with all parameters
-            embeddings_path: Optional path to FastText .bin file to load immediately
+            config: Configuration object with all parameters.
+            embeddings_path: Optional path to FastText .bin file to load immediately.
+
+        Raises:
+            TypeError: If config is not FastTextSearchClassifierConfig.
         """
+        if not isinstance(config, FastTextSearchClassifierConfig):
+            raise TypeError(f"Expected FastTextSearchClassifierConfig, got {type(config)}")
+
         super().__init__(config)
 
         self.fasttext_model: Optional[_FastText] = None
-        self._has_embeddings_loaded = False
-        self._is_fitted = False
 
         if embeddings_path is not None:
             self.load_embeddings(embeddings_path)
-
-        if config.classifier_type == "logistic":
-            self.classifier = LogisticRegression(
-                C=config.regularization_strength,
-                random_state=config.random_state,
-                max_iter=1000,
-                solver="liblinear",
-            )
-        elif config.classifier_type == "svm":
-            self.classifier = SVC(
-                C=config.regularization_strength,
-                kernel="rbf",
-                random_state=config.random_state,
-                probability=True,
-            )
-        else:
-            raise ValueError(f"Unknown classifier_type: {config.classifier_type}. Use 'logistic' or 'svm'")
-
-    def _apply_class_weights(
-        self,
-        weights: Dict[int, float],
-        labels: npt.NDArray[np.bool_],
-    ) -> Dict[str, Any]:
-        """
-        Apply class weights based on classifier type.
-
-        Args:
-            weights: Dictionary mapping class indices to weights
-            labels: Boolean array of labels
-
-        Returns:
-            Dict with fit kwargs - empty for logistic, sample_weight for svm
-        """
-        fit_kwargs: Dict[str, Any] = {}
-        if self.config.classifier_type == "logistic":
-            logger.info("Using class weights: %s", weights)
-            self.classifier.set_params(class_weight=weights)
-
-        else:
-            sample_weights = np.array([weights[int(label)] for label in labels], dtype=np.float64)
-            logger.info("Using sample weights (mean: %.3f)", sample_weights.mean())
-            fit_kwargs["sample_weight"] = sample_weights
-
-        return fit_kwargs
 
     def load_embeddings(self, model_path: Pathlike) -> Self:
         """
@@ -131,7 +89,6 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
 
         logger.info("Loading FastText embeddings from %s...", path)
         self.fasttext_model = fasttext.load_model(str(path))
-        self._has_embeddings_loaded = True
         logger.info("Loaded embeddings (dim=%s)", self.fasttext_model.get_dimension())
 
         return self
@@ -174,7 +131,7 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         """
         return np.array([self._encode_text(text) for text in texts])
 
-    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
+    def train(self, dataset: Dataset, weights: Weights) -> Self:
         """
         Train the classifier on labeled data.
 
@@ -190,7 +147,8 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         logger.info("Encoding %s prompts...", len(dataset.prompts))
         features = self._encode_batch(dataset.prompts)
 
-        logger.info("Training %s classifier...", self.config.classifier_type)
+        classifier_type = type(self.classifier).__name__
+        logger.info("Training %s classifier...", classifier_type)
         fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
         self.classifier.fit(features, dataset.labels, **fit_kwargs)
         self._is_fitted = True
@@ -236,13 +194,8 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         Args:
             filepath: Path to save the classifier (e.g., 'model.pkl')
         """
-        self._check_is_fitted()
-
-        save_dict = {
-            "config": self.config,
-            "classifier": self.classifier,
-            "_is_fitted": self._is_fitted,
-        }
+        save_dict = self._save_state(filepath)
+        save_dict["classifier"] = self.classifier
 
         with open(filepath, "wb") as file:
             pickle.dump(save_dict, file)
@@ -267,8 +220,8 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
             save_dict = pickle.load(file)
 
         model = cls(config=save_dict["config"])
+        model._load_state(save_dict)
         model.classifier = save_dict["classifier"]
-        model._is_fitted = save_dict["_is_fitted"]
 
         if embeddings_path:
             model.load_embeddings(embeddings_path)
@@ -285,7 +238,7 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
 
     @property
     def has_embeddings_loaded(self) -> bool:
-        return self._has_embeddings_loaded
+        return self.fasttext_model is not None
 
     def _check_embeddings_loaded(self) -> None:
         """
@@ -294,19 +247,19 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         Raises:
             RuntimeError: If embeddings haven't been loaded
         """
-        if not self._has_embeddings_loaded:
+        if not self.has_embeddings_loaded:
             raise RuntimeError(
                 "Embeddings not loaded. Call load_embeddings() first.\n"
                 "Download Polish FastText: wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.pl.300.bin.gz"
             )
 
     def __repr__(self) -> str:
+        classifier_type = type(self.classifier).__name__
         return (
             f"FastTextSearchClassifier("
             f"embedding_dim={self.config.embedding_dim}, "
-            f"classifier={self.config.classifier_type}, "
-            f"regularization={self.config.regularization_strength}, "
-            f"embeddings_loaded={self._has_embeddings_loaded}, "
+            f"classifier={classifier_type}, "
+            f"embeddings_loaded={self.has_embeddings_loaded}, "
             f"fitted={self._is_fitted}"
             f")"
         )

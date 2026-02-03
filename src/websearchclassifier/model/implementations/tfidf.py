@@ -1,23 +1,17 @@
-"""
-TF-IDF based binary classifier for web search decision.
-Fast, lightweight classifier that learns automatically from training data.
-"""
-
 from __future__ import annotations
 
 import pickle
-from typing import Any, Dict, List, Self, Tuple, Union
+from typing import Any, List, Self, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from websearchclassifier.config import TfidfSearchClassifierConfig
 from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model.base import SearchClassifier
-from websearchclassifier.utils import Pathlike, logger
+from websearchclassifier.utils import Pathlike, Weights, logger
 
 
 class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
@@ -56,6 +50,9 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Args:
             config: Configuration object with all parameters
         """
+        if not isinstance(config, TfidfSearchClassifierConfig):
+            raise TypeError(f"Expected TfidfSearchClassifierConfig, got {type(config)}")
+
         super().__init__(config)
 
         self.vectorizer = TfidfVectorizer(
@@ -69,36 +66,10 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
             token_pattern=r"\b\w+\b",
         )
 
-        self.classifier = LogisticRegression(
-            C=config.regularization_strength,
-            random_state=config.random_state,
-            max_iter=1000,
-            solver="liblinear",
-        )
-
         self.pipeline = Pipeline([("tfidf", self.vectorizer), ("classifier", self.classifier)])
         self._is_fitted = False
 
-    def _apply_class_weights(
-        self,
-        weights: Dict[int, float],
-        labels: npt.NDArray[np.bool_],
-    ) -> Dict[str, Any]:
-        """
-        Apply class weights for LogisticRegression.
-
-        Args:
-            weights: Dictionary mapping class indices to weights
-            labels: Boolean array of labels (unused for class_weight approach)
-
-        Returns:
-            Empty dict (weights applied via set_params)
-        """
-        logger.info("Using class weights: %s", weights)
-        self.classifier.set_params(class_weight=weights)
-        return {}
-
-    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
+    def train(self, dataset: Dataset, weights: Weights) -> Self:
         """
         Train the classifier on labeled data.
 
@@ -151,10 +122,14 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Get most important features (words/n-grams) for each class.
 
         Args:
-            top_n: Number of top features to return
+            top_n: Number of top features to return.
 
         Returns:
             Tuple of (top_no_search_features, top_needs_search_features)
+
+        Raises:
+            RuntimeError: If the classifier is not fitted.
+            ValueError: If the classifier does not have coefficients.
         """
         self._check_is_fitted()
 
@@ -174,13 +149,8 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Args:
             filepath: Path to save the model (e.g., 'model.pkl')
         """
-        self._check_is_fitted()
-
-        save_dict = {
-            "config": self.config,
-            "pipeline": self.pipeline,
-            "_is_fitted": self._is_fitted,
-        }
+        save_dict = self._save_state(filepath)
+        save_dict["pipeline"] = self.pipeline
 
         with open(filepath, "wb") as file:
             pickle.dump(save_dict, file)
@@ -206,8 +176,8 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
             return save_dict
 
         model = cls(config=save_dict["config"])
+        model._load_state(save_dict)
         model.pipeline = save_dict["pipeline"]
-        model._is_fitted = save_dict["_is_fitted"]
 
         logger.info("Model loaded from %s", filepath)
         return model
@@ -221,7 +191,6 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
             f"TfidfSearchClassifier("
             f"max_features={self.config.max_features}, "
             f"ngram_range={self.config.ngram_range}, "
-            f"regularization={self.config.regularization_strength}, "
             f"fitted={self._is_fitted}"
             f")"
         )

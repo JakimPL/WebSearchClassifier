@@ -1,12 +1,14 @@
 from websearchclassifier.config import (
+    ClassifierType,
     DatasetConfig,
     FastTextSearchClassifierConfig,
+    ModelType,
     SearchClassifierConfig,
     TfidfSearchClassifierConfig,
 )
 from websearchclassifier.dataset import DatasetFormat
 from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TfidfSearchClassifier
-from websearchclassifier.pipeline import ModelType, Pipeline
+from websearchclassifier.pipeline import Pipeline
 from websearchclassifier.utils import logger
 
 __all__ = [
@@ -18,6 +20,7 @@ __all__ = [
     "FastTextSearchClassifierConfig",
     "TfidfSearchClassifier",
     "TfidfSearchClassifierConfig",
+    "ClassifierType",
     "ModelType",
     "Pipeline",
     "logger",

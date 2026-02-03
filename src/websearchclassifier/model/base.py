@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, Generic, Optional, Self, TypeVar, Union
+from typing import Any, Dict, Generic, Optional, Self, Union
 
 import numpy as np
 import numpy.typing as npt
 
-from websearchclassifier.config import SearchClassifierConfig
+from websearchclassifier.config import ConfigT
 from websearchclassifier.dataset import Dataset, DatasetLike, Labels, Prompts
-
-ConfigT = TypeVar("ConfigT", bound=SearchClassifierConfig)
+from websearchclassifier.model.classifier.type import load_classifier_wrapper
+from websearchclassifier.utils import Pathlike, ProbabilisticClassifier, Weights
 
 
 class SearchClassifier(ABC, Generic[ConfigT]):
@@ -29,7 +28,9 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         Initialize the base classifier.
         """
         self._is_fitted: bool = False
-        self.config = config
+        self.config: ConfigT = config
+        self.wrapper = load_classifier_wrapper(config.classifier_config)
+        self.classifier: ProbabilisticClassifier[Any] = self.wrapper.classifier
 
     def fit(
         self,
@@ -55,7 +56,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         return self.train(dataset, weights)
 
     @abstractmethod
-    def train(self, dataset: Dataset, weights: Dict[int, float]) -> Self:
+    def train(self, dataset: Dataset, weights: Weights) -> Self:
         """
         Train the classifier on the provided dataset.
 
@@ -90,8 +91,33 @@ class SearchClassifier(ABC, Generic[ConfigT]):
             Array of shape (n_samples, 2) with probabilities [no_search, needs_search]
         """
 
+    def _save_state(self, filepath: Pathlike) -> Dict[str, Any]:
+        """
+        Get the base state dictionary for saving.
+
+        Args:
+            filepath: Path to save the model
+
+        Returns:
+            Dictionary with base state (config, _is_fitted)
+        """
+        self._check_is_fitted()
+        return {
+            "config": self.config,
+            "_is_fitted": self._is_fitted,
+        }
+
+    def _load_state(self, save_dict: Dict[str, Any]) -> None:
+        """
+        Load the base state from a saved dictionary.
+
+        Args:
+            save_dict: Dictionary containing saved state
+        """
+        self._is_fitted = save_dict["_is_fitted"]
+
     @abstractmethod
-    def save(self, filepath: Path) -> None:
+    def save(self, filepath: Pathlike) -> None:
         """
         Save the trained model to disk.
 
@@ -101,7 +127,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
 
     @classmethod
     @abstractmethod
-    def load(cls, filepath: Path, **kwargs: Any) -> Self:
+    def load(cls, filepath: Pathlike, **kwargs: Any) -> Self:
         """
         Load a trained model from disk.
 
@@ -147,7 +173,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
 
     def prepare_sample_weights(
         self,
-        weights: Dict[int, float],
+        weights: Weights,
         labels: npt.NDArray[np.bool_],
     ) -> Dict[str, Any]:
         """
@@ -166,28 +192,7 @@ class SearchClassifier(ABC, Generic[ConfigT]):
         if not self.config.use_class_weights:
             return {}
 
-        if all(abs(w - 1.0) < 1e-9 for w in weights.values()):
+        if np.allclose(np.array(list(weights.values())), 1.0):
             return {}
 
-        return self._apply_class_weights(weights, labels)
-
-    @abstractmethod
-    def _apply_class_weights(
-        self,
-        weights: Dict[int, float],
-        labels: npt.NDArray[np.bool_],
-    ) -> Dict[str, Any]:
-        """
-        Apply class weights in implementation-specific way.
-
-        Implementations should:
-        1. Configure the classifier (e.g., set_params for class_weight)
-        2. Return kwargs dict for fit() method (e.g., {"sample_weight": array})
-
-        Args:
-            weights: Dictionary mapping class indices to weights
-            labels: Boolean array of labels (needed for sample_weight conversion)
-
-        Returns:
-            Dictionary of kwargs to pass to fit() method
-        """
+        return self.wrapper.apply_class_weights(weights, labels)

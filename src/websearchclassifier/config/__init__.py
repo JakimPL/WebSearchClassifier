@@ -3,16 +3,34 @@ from websearchclassifier.config.dataset.weights import WeightingScheme, Weightin
 from websearchclassifier.config.evaluation.base import EvaluatorConfig
 from websearchclassifier.config.evaluation.implementations.cross_validation import CrossValidationEvaluatorConfig
 from websearchclassifier.config.model.base import SearchClassifierConfig
+from websearchclassifier.config.model.classifier.base import ClassifierConfig
+from websearchclassifier.config.model.classifier.implementations import LogisticRegressionConfig, SVMConfig
+from websearchclassifier.config.model.classifier.type import ClassifierType, ClassifierTypeLike, ClassifierTypeLiteral
 from websearchclassifier.config.model.implementations.ftext import FastTextSearchClassifierConfig
+from websearchclassifier.config.model.implementations.herbert import HerBERTSearchClassifierConfig
 from websearchclassifier.config.model.implementations.tfidf import TfidfSearchClassifierConfig
+from websearchclassifier.config.model.type import ModelType, ModelTypeLike, ModelTypeLiteral
+from websearchclassifier.config.model.types import ClassifierConfigT, ConfigT
 
 __all__ = [
+    "ConfigT",
+    "ClassifierConfigT",
+    "ClassifierType",
+    "ClassifierTypeLiteral",
+    "ClassifierTypeLike",
+    "ModelType",
+    "ModelTypeLiteral",
+    "ModelTypeLike",
     "DatasetConfig",
     "SearchClassifierConfig",
     "TfidfSearchClassifierConfig",
     "FastTextSearchClassifierConfig",
+    "HerBERTSearchClassifierConfig",
     "EvaluatorConfig",
     "CrossValidationEvaluatorConfig",
     "WeightingScheme",
     "WeightingSchemeLike",
+    "ClassifierConfig",
+    "LogisticRegressionConfig",
+    "SVMConfig",
 ]

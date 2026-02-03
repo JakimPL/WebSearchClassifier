@@ -7,20 +7,33 @@ dataset:
 
 output_directory: models/
 
+classifiers:
+  logistic_regression:
+    random_state: 42
+    max_iterations: 1000
+    regularization_strength: 1.0
+
+  svm:
+    regularization_strength: 1.0
+    probability: true
+    kernel: rbf
+
 models:
   tfidf:
-    name: tfidf
+    use_class_weights: true
     max_features: 5000
     ngram_range: [1, 3]
     min_document_frequency: 2
     max_document_frequency: 0.95
-    regularization_strength: 1.0
-    random_state: 42
 
   fasttext:
-    name: fasttext
+    use_class_weights: true
     embedding_dim: 300
-    classifier_type: logistic
-    regularization_strength: 1.0
-    random_state: 42
     embeddings_path: cc.pl.300.bin
+
+  herbert:
+    use_class_weights: true
+    model_name: allegro/herbert-base-cased
+    batch_size: 32
+    max_length: 128
+    device: auto
