@@ -1,11 +1,9 @@
 from typing import Any, Type
 
-from websearchclassifier.config import ClassifierConfig, ClassifierType
-from websearchclassifier.config.model.classifier.implementations.logistic import LogisticRegressionConfig
-from websearchclassifier.config.model.classifier.implementations.svm import SVMConfig
-from websearchclassifier.model.classifier.implementations.logistic import LogisticRegressionWrapper
-from websearchclassifier.model.classifier.implementations.svm import SVMWrapper
-from websearchclassifier.model.classifier.wrapper import ClassifierWrapper
+from websearchclassifier.classifier.implementations.logistic import LogisticRegressionWrapper
+from websearchclassifier.classifier.implementations.svm import SVMWrapper
+from websearchclassifier.classifier.wrapper import ClassifierWrapper
+from websearchclassifier.config import ClassifierConfig, ClassifierType, LogisticRegressionConfig, SVMConfig
 from websearchclassifier.utils import ProbabilisticClassifierT_co
 
 

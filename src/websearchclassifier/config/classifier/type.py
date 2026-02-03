@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Literal, TypeAlias, Union
 
 
-class ClassifierType(str, Enum):
+class ClassifierType(StrEnum):
     LOGISTIC_REGRESSION = "logistic_regression"
     SVM = "svm"
 

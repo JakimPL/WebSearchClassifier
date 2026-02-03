@@ -2,8 +2,8 @@ from typing import Literal
 
 from sklearn.svm import SVC
 
-from websearchclassifier.config.model.classifier.base import ClassifierConfig
-from websearchclassifier.config.model.classifier.type import ClassifierType
+from websearchclassifier.config.classifier.base import ClassifierConfig
+from websearchclassifier.config.classifier.type import ClassifierType
 
 
 class SVMConfig(ClassifierConfig[SVC]):

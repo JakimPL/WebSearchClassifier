@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from websearchclassifier import (
     DatasetConfig,
@@ -9,9 +9,11 @@ from websearchclassifier import (
     ModelType,
     Pipeline,
     SearchClassifierConfig,
-    TfidfSearchClassifierConfig,
+    TFIDFSearchClassifierConfig,
 )
-from websearchclassifier.config import ClassifierType, HerBERTSearchClassifierConfig
+from websearchclassifier.config import ClassifierConfig, ClassifierType, HerBERTSearchClassifierConfig
+from websearchclassifier.config.classifier.implementations.logistic import LogisticRegressionConfig
+from websearchclassifier.config.classifier.implementations.svm import SVMConfig
 from websearchclassifier.utils import logger
 
 
@@ -105,16 +107,27 @@ def load_configuration(
         logger.warning("Config file %s not found, using defaults", config_path)
         output_path = Path(output_path_override or f"models/{model_type}_classifier.pkl")
 
+        classifier_config: ClassifierConfig[Any]
+        match classifier_type:
+            case ClassifierType.LOGISTIC_REGRESSION:
+                classifier_config = LogisticRegressionConfig()
+            case ClassifierType.SVM:
+                classifier_config = SVMConfig()
+            case _:
+                logger.error("Unknown classifier type: %s", classifier_type)
+                logger.info("Available: %s", ", ".join(ct.name for ct in ClassifierType))
+                raise ValueError(f"Unknown classifier type: {classifier_type}") from exception
+
         match model_type:
             case ModelType.TFIDF:
-                config = TfidfSearchClassifierConfig()
+                config = TFIDFSearchClassifierConfig(classifier_config=classifier_config)
             case ModelType.FASTTEXT:
-                config = FastTextSearchClassifierConfig()
+                config = FastTextSearchClassifierConfig(classifier_config=classifier_config)
             case ModelType.HERBERT:
-                config = HerBERTSearchClassifierConfig()
+                config = HerBERTSearchClassifierConfig(classifier_config=classifier_config)
             case _:
                 logger.error("Unknown model type: %s", model_type)
-                logger.info("Available: tfidf, fasttext")
+                logger.info("Available: %s", ", ".join(mt.name for mt in ModelType))
                 raise ValueError(f"Unknown model type: {model_type}") from exception
 
         return config, output_path

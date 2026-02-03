@@ -4,7 +4,7 @@ from websearchclassifier.config.model.base import SearchClassifierConfig
 from websearchclassifier.config.model.type import ModelType
 
 
-class TfidfSearchClassifierConfig(SearchClassifierConfig):
+class TFIDFSearchClassifierConfig(SearchClassifierConfig):
     type: ModelType = ModelType.TFIDF
     max_features: int = 5000
     ngram_range: Tuple[int, int] = (1, 2)

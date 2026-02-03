@@ -1,9 +1,9 @@
+from websearchclassifier.config.classifier.base import ClassifierConfig
+from websearchclassifier.config.classifier.implementations import LogisticRegressionConfig, SVMConfig
 from websearchclassifier.config.model.base import SearchClassifierConfig
-from websearchclassifier.config.model.classifier.base import ClassifierConfig
-from websearchclassifier.config.model.classifier.implementations import LogisticRegressionConfig, SVMConfig
 from websearchclassifier.config.model.implementations.ftext import FastTextSearchClassifierConfig
 from websearchclassifier.config.model.implementations.herbert import HerBERTSearchClassifierConfig
-from websearchclassifier.config.model.implementations.tfidf import TfidfSearchClassifierConfig
+from websearchclassifier.config.model.implementations.tfidf import TFIDFSearchClassifierConfig
 from websearchclassifier.config.model.type import ModelType, ModelTypeLike, ModelTypeLiteral
 from websearchclassifier.config.model.types import ClassifierConfigT, ConfigT
 
@@ -15,7 +15,7 @@ __all__ = [
     "SearchClassifierConfig",
     "FastTextSearchClassifierConfig",
     "HerBERTSearchClassifierConfig",
-    "TfidfSearchClassifierConfig",
+    "TFIDFSearchClassifierConfig",
     "ClassifierConfig",
     "ClassifierConfigT",
     "LogisticRegressionConfig",

@@ -4,8 +4,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.linear_model import LogisticRegression
 
+from websearchclassifier.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.config import LogisticRegressionConfig
-from websearchclassifier.model.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.utils import Weights, logger
 
 

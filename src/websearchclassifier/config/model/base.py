@@ -2,8 +2,8 @@ from typing import Union
 
 from pydantic import BaseModel, ConfigDict
 
-from websearchclassifier.config.model.classifier.implementations.logistic import LogisticRegressionConfig
-from websearchclassifier.config.model.classifier.implementations.svm import SVMConfig
+from websearchclassifier.config.classifier.implementations.logistic import LogisticRegressionConfig
+from websearchclassifier.config.classifier.implementations.svm import SVMConfig
 from websearchclassifier.config.model.type import ModelType
 
 
@@ -16,5 +16,5 @@ class SearchClassifierConfig(BaseModel):
     )
 
     type: ModelType
-    classifier_config: Union[LogisticRegressionConfig, SVMConfig] = LogisticRegressionConfig()
+    classifier_config: Union[LogisticRegressionConfig, SVMConfig]
     use_class_weights: bool = True

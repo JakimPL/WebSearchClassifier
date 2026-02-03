@@ -6,9 +6,9 @@ from typing import Any, Dict, Generic, Optional, Self, Union
 import numpy as np
 import numpy.typing as npt
 
+from websearchclassifier.classifier.type import load_classifier_wrapper
 from websearchclassifier.config import ConfigT
 from websearchclassifier.dataset import Dataset, DatasetLike, Labels, Prompts
-from websearchclassifier.model.classifier.type import load_classifier_wrapper
 from websearchclassifier.utils import Pathlike, ProbabilisticClassifier, Weights
 
 

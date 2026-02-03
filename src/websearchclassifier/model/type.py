@@ -7,18 +7,18 @@ from websearchclassifier.config import (
     HerBERTSearchClassifierConfig,
     ModelType,
     SearchClassifierConfig,
-    TfidfSearchClassifierConfig,
+    TFIDFSearchClassifierConfig,
 )
 from websearchclassifier.model.base import SearchClassifier
 from websearchclassifier.model.implementations.ftext import FastTextSearchClassifier
 from websearchclassifier.model.implementations.herbert import HerBERTSearchClassifier
-from websearchclassifier.model.implementations.tfidf import TfidfSearchClassifier
+from websearchclassifier.model.implementations.tfidf import TFIDFSearchClassifier
 
 
 def get_model_config_class(model_type: ModelType) -> Type[SearchClassifierConfig]:
     match model_type:
         case ModelType.TFIDF:
-            return TfidfSearchClassifierConfig
+            return TFIDFSearchClassifierConfig
         case ModelType.FASTTEXT:
             return FastTextSearchClassifierConfig
         case ModelType.HERBERT:
@@ -30,7 +30,7 @@ def get_model_config_class(model_type: ModelType) -> Type[SearchClassifierConfig
 def get_model_class(model_type: ModelType) -> Type[SearchClassifier[Any]]:
     match model_type:
         case ModelType.TFIDF:
-            return TfidfSearchClassifier
+            return TFIDFSearchClassifier
         case ModelType.FASTTEXT:
             return FastTextSearchClassifier
         case ModelType.HERBERT:

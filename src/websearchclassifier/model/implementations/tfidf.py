@@ -8,13 +8,13 @@ import numpy.typing as npt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 
-from websearchclassifier.config import TfidfSearchClassifierConfig
+from websearchclassifier.config import TFIDFSearchClassifierConfig
 from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model.base import SearchClassifier
 from websearchclassifier.utils import Pathlike, Weights, logger
 
 
-class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
+class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
     """
     Binary classifier for determining if a prompt requires web search.
 
@@ -22,7 +22,7 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
     classification without requiring external LLM.
 
     Example:
-        >>> classifier = TfidfSearchClassifier()
+        >>> classifier = TFIDFSearchClassifier()
         >>> # Training data: (prompt, needs_search)
         >>> train_data = [
         ...     ("jaka jest dzisiaj pogoda w Warszawie", True),
@@ -42,16 +42,16 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
 
     def __init__(
         self,
-        config: TfidfSearchClassifierConfig,
+        config: TFIDFSearchClassifierConfig,
     ):
         """
         Initialize the classifier.
 
         Args:
-            config: Configuration object with all parameters
+            config: Configuration object with all parameters.
         """
-        if not isinstance(config, TfidfSearchClassifierConfig):
-            raise TypeError(f"Expected TfidfSearchClassifierConfig, got {type(config)}")
+        if not isinstance(config, TFIDFSearchClassifierConfig):
+            raise TypeError(f"Expected TFIDFSearchClassifierConfig, got {type(config)}")
 
         super().__init__(config)
 
@@ -74,11 +74,11 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Train the classifier on labeled data.
 
         Args:
-            dataset: Dataset containing prompts and labels
-            weights: Dictionary mapping class indices to weights
+            dataset: Dataset containing prompts and labels.
+            weights: Dictionary mapping class indices to weights.
 
         Returns:
-            self (for method chaining)
+            self (for method chaining).
         """
         logger.info("Training TF-IDF classifier on %s samples...", len(dataset.prompts))
         fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
@@ -92,10 +92,10 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Predict whether prompts need web search.
 
         Args:
-            prompts: Single prompt string or list of prompts
+            prompts: Single prompt string or list of prompts.
 
         Returns:
-            Boolean array (True = needs search, False = no search)
+            Boolean array (True = needs search, False = no search).
         """
         features: npt.NDArray[np.str_] = self._get_features(prompts)
         result = self.pipeline.predict(features)
@@ -108,10 +108,10 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Predict probability of needing web search.
 
         Args:
-            prompts: Single prompt string or list of prompts
+            prompts: Single prompt string or list of prompts.
 
         Returns:
-            Array of shape (n_samples, 2) with probabilities [no_search, needs_search]
+            Array of shape (n_samples, 2) with probabilities [no_search, needs_search].
         """
         features: npt.NDArray[np.str_] = self._get_features(prompts)
         proba: npt.NDArray[np.floating] = self.pipeline.predict_proba(features)
@@ -125,7 +125,7 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
             top_n: Number of top features to return.
 
         Returns:
-            Tuple of (top_no_search_features, top_needs_search_features)
+            Tuple of (top_no_search_features, top_needs_search_features).
 
         Raises:
             RuntimeError: If the classifier is not fitted.
@@ -147,7 +147,7 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Save the trained model to disk.
 
         Args:
-            filepath: Path to save the model (e.g., 'model.pkl')
+            filepath: Path to save the model (e.g., 'model.pkl').
         """
         save_dict = self._save_state(filepath)
         save_dict["pipeline"] = self.pipeline
@@ -163,11 +163,10 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
         Load a trained model from disk.
 
         Args:
-            filepath: Path to the saved model
-            **kwargs: Unused, kept for interface compatibility
+            filepath: Path to the saved model.
 
         Returns:
-            Loaded TfidfSearchClassifier instance
+            Loaded TFIDFSearchClassifier instance.
         """
         with open(filepath, "rb") as file:
             save_dict = pickle.load(file)
@@ -188,7 +187,7 @@ class TfidfSearchClassifier(SearchClassifier[TfidfSearchClassifierConfig]):
 
     def __repr__(self) -> str:
         return (
-            f"TfidfSearchClassifier("
+            f"TFIDFSearchClassifier("
             f"max_features={self.config.max_features}, "
             f"ngram_range={self.config.ngram_range}, "
             f"fitted={self._is_fitted}"

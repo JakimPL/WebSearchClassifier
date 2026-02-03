@@ -4,8 +4,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.svm import SVC
 
+from websearchclassifier.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.config import SVMConfig
-from websearchclassifier.model.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.utils import Weights, logger
 
 

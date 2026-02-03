@@ -3,7 +3,7 @@ from typing import Generic
 
 from pydantic import BaseModel, ConfigDict
 
-from websearchclassifier.config.model.classifier.type import ClassifierType
+from websearchclassifier.config.classifier.type import ClassifierType
 from websearchclassifier.utils import ProbabilisticClassifierT_co
 
 

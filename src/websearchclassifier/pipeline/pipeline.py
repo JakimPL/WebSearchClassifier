@@ -14,14 +14,14 @@ from websearchclassifier.config import (
     ModelType,
     ModelTypeLike,
     SearchClassifierConfig,
-    TfidfSearchClassifierConfig,
+    TFIDFSearchClassifierConfig,
 )
 from websearchclassifier.dataset import Dataset
 from websearchclassifier.model import (
     FastTextSearchClassifier,
     HerBERTSearchClassifier,
     SearchClassifier,
-    TfidfSearchClassifier,
+    TFIDFSearchClassifier,
     get_model_config_class,
 )
 from websearchclassifier.utils import logger
@@ -37,7 +37,7 @@ class Pipeline:
     Example:
         >>> pipeline = Pipeline(data_path="data/train.csv")
         >>> model = pipeline.train_and_save(
-        ...     classifier_class=TfidfSearchClassifier,
+        ...     classifier_class=TFIDFSearchClassifier,
         ...     output_path="model.pkl"
         ... )
         >>> predictions = model.predict(["test prompt"])
@@ -106,9 +106,9 @@ class Pipeline:
                         f"gunzip cc.pl.300.bin.gz"
                     )
                 classifier.load_embeddings(config.embeddings_path)
-            case TfidfSearchClassifierConfig():
-                logger.info("Initializing TfidfSearchClassifier...")
-                classifier = TfidfSearchClassifier(config=config)
+            case TFIDFSearchClassifierConfig():
+                logger.info("Initializing TFIDFSearchClassifier...")
+                classifier = TFIDFSearchClassifier(config=config)
             case HerBERTSearchClassifierConfig():
                 logger.info("Initializing HerBERTSearchClassifier...")
                 classifier = HerBERTSearchClassifier(config=config)
@@ -140,7 +140,7 @@ class Pipeline:
         Example:
             >>> dataset_config = DatasetConfig(path=Path("data/train.csv"))
             >>> pipeline = Pipeline(dataset_config)
-            >>> config = TfidfSearchClassifierConfig(max_features=3000)
+            >>> config = TFIDFSearchClassifierConfig(max_features=3000)
             >>> model = pipeline.train_and_save(config, "tfidf_model.pkl")
         """
         if self.dataset is None:

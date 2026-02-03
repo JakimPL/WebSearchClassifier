@@ -1,13 +1,17 @@
+from websearchclassifier.classifier import ClassifierWrapper, LogisticRegressionWrapper, SVMWrapper
 from websearchclassifier.config import (
+    ClassifierConfig,
     ClassifierType,
     DatasetConfig,
     FastTextSearchClassifierConfig,
+    LogisticRegressionConfig,
     ModelType,
     SearchClassifierConfig,
-    TfidfSearchClassifierConfig,
+    SVMConfig,
+    TFIDFSearchClassifierConfig,
 )
 from websearchclassifier.dataset import DatasetFormat
-from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TfidfSearchClassifier
+from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TFIDFSearchClassifier
 from websearchclassifier.pipeline import Pipeline
 from websearchclassifier.utils import logger
 
@@ -18,9 +22,15 @@ __all__ = [
     "SearchClassifierConfig",
     "FastTextSearchClassifier",
     "FastTextSearchClassifierConfig",
-    "TfidfSearchClassifier",
-    "TfidfSearchClassifierConfig",
+    "TFIDFSearchClassifier",
+    "TFIDFSearchClassifierConfig",
     "ClassifierType",
+    "ClassifierConfig",
+    "ClassifierWrapper",
+    "LogisticRegressionConfig",
+    "LogisticRegressionWrapper",
+    "SVMConfig",
+    "SVMWrapper",
     "ModelType",
     "Pipeline",
     "logger",
