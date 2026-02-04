@@ -7,13 +7,30 @@ dataset:
 
 output_directory: models/
 
+general:
+  device: &device auto
+  random_state: &random_state 42
+  batch_size: &batch_size 128
+
 classifiers:
   logistic_regression:
-    random_state: 42
+    random_state: *random_state
     max_iterations: 1000
     regularization_strength: 1.0
 
+  mlp:
+    random_state: *random_state
+    hidden_layer_sizes: [128, 64]
+    activation: tanh
+    learning_rate: 0.001
+    max_iterations: 200
+    batch_size: *batch_size
+    dropout_rate: 0.3
+    early_stopping: true
+    validation_fraction: 0.1
+
   svm:
+    random_state: *random_state
     regularization_strength: 1.0
     probability: true
     kernel: rbf
@@ -34,6 +51,6 @@ models:
   herbert:
     use_class_weights: true
     model_name: allegro/herbert-base-cased
-    batch_size: 32
-    max_length: 128
-    device: auto
+    batch_size: *batch_size
+    max_length: 1024
+    device: *device

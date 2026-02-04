@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pickle
 from pathlib import Path
 from typing import Any, Optional, Self, Union
 
@@ -146,15 +145,7 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
 
         logger.info("Encoding %s prompts...", len(dataset.prompts))
         features = self._encode_batch(dataset.prompts)
-
-        classifier_type = type(self.classifier).__name__
-        logger.info("Training %s classifier...", classifier_type)
-        fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
-        self.classifier.fit(features, dataset.labels, **fit_kwargs)
-        self._is_fitted = True
-        logger.info("Model trained successfully")
-
-        return self
+        return self._train(features, dataset.labels, weights)
 
     def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         """
@@ -192,15 +183,10 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         You'll need to load embeddings separately when loading the model.
 
         Args:
-            filepath: Path to save the classifier (e.g., 'model.pkl')
+            filepath: Path to save the classifier (e.g., 'model.pkl').
         """
-        save_dict = self._save_state(filepath)
-        save_dict["classifier"] = self.classifier
-
-        with open(filepath, "wb") as file:
-            pickle.dump(save_dict, file)
-
-        logger.info("Classifier saved to %s", filepath)
+        self._save_state(filepath)
+        logger.info("FastText classifier saved to: '%s'", filepath)
         logger.warning("FastText embeddings NOT included in save file. Load them separately when loading model.")
 
     @classmethod
@@ -209,31 +195,25 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         Load a trained classifier and embeddings.
 
         Args:
-            filepath: Path to the saved classifier
-            embeddings_path: Path to FastText embeddings (.bin file)
-            **kwargs: Additional arguments
+            filepath: Path to the saved classifier.
+            embeddings_path: Path to FastText embeddings (.bin file).
 
         Returns:
-            Loaded FastTextSearchClassifier instance
+            Loaded FastTextSearchClassifier instance.
         """
-        with open(filepath, "rb") as file:
-            save_dict = pickle.load(file)
-
-        model = cls(config=save_dict["config"])
-        model._load_state(save_dict)
-        model.classifier = save_dict["classifier"]
+        model = cls._load_state(filepath)
 
         if embeddings_path:
             model.load_embeddings(embeddings_path)
         else:
             logger.warning("Embeddings not loaded. Call load_embeddings() before using the model.")
 
-        logger.info("Model loaded from %s", filepath)
+        logger.info("FastText model loaded from: '%s'", filepath)
         return model
 
     def _get_features(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
-        self._check_is_fitted()
-        prompts = self._normalize_prompts(prompts)
+        self.check_is_fitted()
+        prompts = self.normalize_prompts(prompts)
         return self._encode_batch(prompts)
 
     @property
@@ -257,8 +237,8 @@ class FastTextSearchClassifier(SearchClassifier[FastTextSearchClassifierConfig])
         classifier_type = type(self.classifier).__name__
         return (
             f"FastTextSearchClassifier("
-            f"embedding_dim={self.config.embedding_dim}, "
             f"classifier={classifier_type}, "
+            f"embedding_dim={self.config.embedding_dim}, "
             f"embeddings_loaded={self.has_embeddings_loaded}, "
             f"fitted={self._is_fitted}"
             f")"

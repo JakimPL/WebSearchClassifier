@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pickle
 from typing import Any, Optional, Self, TypeAlias, Union
 
 import numpy as np
@@ -103,15 +102,7 @@ class HerBERTSearchClassifier(SearchClassifier[HerBERTSearchClassifierConfig]):
 
         logger.info("Encoding %s prompts with HerBERT...", len(dataset.prompts))
         features = self._encode_batch(dataset.prompts)
-
-        classifier_type = type(self.classifier).__name__
-        logger.info("Training %s classifier...", classifier_type)
-        fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
-        self.classifier.fit(features, dataset.labels, **fit_kwargs)
-        self._is_fitted = True
-        logger.info("Model trained successfully")
-
-        return self
+        return self._train(features, dataset.labels, weights)
 
     def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         features = self._get_features(prompts)
@@ -124,31 +115,38 @@ class HerBERTSearchClassifier(SearchClassifier[HerBERTSearchClassifierConfig]):
         return proba
 
     def save(self, filepath: Pathlike) -> None:
-        save_dict = self._save_state(filepath)
-        save_dict["classifier"] = self.classifier
+        """
+        Save the classifier to a file.
 
-        with open(filepath, "wb") as file:
-            pickle.dump(save_dict, file)
+        The baseline HerBERT model is NOT saved and will be reloaded from HuggingFace
 
-        logger.info("Classifier saved to %s", filepath)
+        Args:
+            filepath: Path to save the classifier (e.g., 'model.pkl').
+        """
+        self._save_state(filepath)
+        logger.info("HerBERT classifier saved to: '%s'", filepath)
         logger.warning("HerBERT model NOT included. Will be reloaded from HuggingFace on load()")
 
     @classmethod
     def load(cls, filepath: Pathlike, **kwargs: Any) -> Self:
-        with open(filepath, "rb") as file:
-            save_dict = pickle.load(file)
+        """
+        Load a trained HerBERTSearchClassifier from file.
 
-        model = cls(config=save_dict["config"])
-        model._load_state(save_dict)
-        model.classifier = save_dict["classifier"]
+        Args:
+            filepath: Path to the saved classifier.
+
+        Returns:
+            Loaded HerBERTSearchClassifier instance.
+        """
+        model = cls._load_state(filepath)
         model._load_model()
 
-        logger.info("Model loaded from %s", filepath)
+        logger.info("HerBERT classifier loaded from: '%s'", filepath)
         return model
 
     def _get_features(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.floating]:
-        self._check_is_fitted()
-        array: npt.NDArray[np.str_] = self._normalize_prompts(prompts)
+        self.check_is_fitted()
+        array: npt.NDArray[np.str_] = self.normalize_prompts(prompts)
         return self._encode_batch(array)
 
     def _check_model_loaded(self) -> None:
@@ -159,7 +157,6 @@ class HerBERTSearchClassifier(SearchClassifier[HerBERTSearchClassifierConfig]):
         classifier_type = type(self.classifier).__name__
         return (
             f"HerBERTSearchClassifier("
-            f"model={self.config.model_name}, "
             f"classifier={classifier_type}, "
             f"device={self.device}, "
             f"batch_size={self.config.batch_size}, "

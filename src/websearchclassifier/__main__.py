@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from websearchclassifier import (
     DatasetConfig,
@@ -11,8 +11,9 @@ from websearchclassifier import (
     SearchClassifierConfig,
     TFIDFSearchClassifierConfig,
 )
-from websearchclassifier.config import ClassifierConfig, ClassifierType, HerBERTSearchClassifierConfig
+from websearchclassifier.config import ClassifierType, HerBERTSearchClassifierConfig
 from websearchclassifier.config.classifier.implementations.logistic import LogisticRegressionConfig
+from websearchclassifier.config.classifier.implementations.mlp import MLPConfig
 from websearchclassifier.config.classifier.implementations.svm import SVMConfig
 from websearchclassifier.utils import logger
 
@@ -107,12 +108,14 @@ def load_configuration(
         logger.warning("Config file %s not found, using defaults", config_path)
         output_path = Path(output_path_override or f"models/{model_type}_classifier.pkl")
 
-        classifier_config: ClassifierConfig[Any]
+        classifier_config: Union[LogisticRegressionConfig, SVMConfig, MLPConfig]
         match classifier_type:
             case ClassifierType.LOGISTIC_REGRESSION:
                 classifier_config = LogisticRegressionConfig()
             case ClassifierType.SVM:
                 classifier_config = SVMConfig()
+            case ClassifierType.MLP:
+                classifier_config = MLPConfig()
             case _:
                 logger.error("Unknown classifier type: %s", classifier_type)
                 logger.info("Available: %s", ", ".join(ct.name for ct in ClassifierType))

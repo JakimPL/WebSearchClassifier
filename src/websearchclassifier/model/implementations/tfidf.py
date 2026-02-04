@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pickle
 from typing import Any, List, Self, Tuple, Union
 
 import numpy as np
@@ -53,8 +52,6 @@ class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
         if not isinstance(config, TFIDFSearchClassifierConfig):
             raise TypeError(f"Expected TFIDFSearchClassifierConfig, got {type(config)}")
 
-        super().__init__(config)
-
         self.vectorizer = TfidfVectorizer(
             max_features=config.max_features,
             ngram_range=config.ngram_range,
@@ -66,8 +63,7 @@ class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
             token_pattern=r"\b\w+\b",
         )
 
-        self.pipeline = Pipeline([("tfidf", self.vectorizer), ("classifier", self.classifier)])
-        self._is_fitted = False
+        super().__init__(config)
 
     def train(self, dataset: Dataset, weights: Weights) -> Self:
         """
@@ -80,12 +76,7 @@ class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
         Returns:
             self (for method chaining).
         """
-        logger.info("Training TF-IDF classifier on %s samples...", len(dataset.prompts))
-        fit_kwargs = self.prepare_sample_weights(weights, dataset.labels)
-        self.pipeline.fit(dataset.prompts, dataset.labels, **fit_kwargs)
-        self._is_fitted = True
-        logger.info("Model trained successfully")
-        return self
+        return self._train(dataset.prompts, dataset.labels, weights)
 
     def predict(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.bool_]:
         """
@@ -130,11 +121,12 @@ class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
         Raises:
             RuntimeError: If the classifier is not fitted.
             ValueError: If the classifier does not have coefficients.
+            ValueError: If feature importance is not supported for this classifier type.
         """
-        self._check_is_fitted()
+        self.check_is_fitted()
 
         feature_names: npt.NDArray[np.str_] = self.vectorizer.get_feature_names_out()
-        coefficients = self.classifier.coef_[0]
+        coefficients = self.wrapper.feature_importances_
         sorted_indices = np.argsort(coefficients)
 
         top_no_search: List[str] = [str(feature_names[i]) for i in sorted_indices[:top_n]]
@@ -144,50 +136,41 @@ class TFIDFSearchClassifier(SearchClassifier[TFIDFSearchClassifierConfig]):
 
     def save(self, filepath: Pathlike) -> None:
         """
-        Save the trained model to disk.
+        Save the trained TF-IDF classifier to disk.
 
         Args:
-            filepath: Path to save the model (e.g., 'model.pkl').
+            filepath: Path to the saved classifier.
         """
-        save_dict = self._save_state(filepath)
-        save_dict["pipeline"] = self.pipeline
-
-        with open(filepath, "wb") as file:
-            pickle.dump(save_dict, file)
-
-        logger.info("Classifier saved to %s", filepath)
+        self._save_state(filepath)
+        logger.info("TF-IDF classifier saved to: '%s'", filepath)
 
     @classmethod
     def load(cls, filepath: Pathlike, **kwargs: Any) -> Self:
         """
-        Load a trained model from disk.
+        Load a trained TF-IDF classifier from disk.
 
         Args:
-            filepath: Path to the saved model.
+            filepath: Path to the saved classifier.
 
         Returns:
             Loaded TFIDFSearchClassifier instance.
         """
-        with open(filepath, "rb") as file:
-            save_dict = pickle.load(file)
-
-        if isinstance(save_dict, cls):
-            return save_dict
-
-        model = cls(config=save_dict["config"])
-        model._load_state(save_dict)
-        model.pipeline = save_dict["pipeline"]
-
-        logger.info("Model loaded from %s", filepath)
+        model = cls._load_state(filepath)
+        logger.info("TF-IDF classifier loaded from: '%s'", filepath)
         return model
 
+    def _create_pipeline(self) -> Pipeline:
+        return Pipeline([("tfidf", self.vectorizer), ("classifier", self.classifier)])
+
     def _get_features(self, prompts: Union[str, Prompts]) -> npt.NDArray[np.str_]:
-        self._check_is_fitted()
-        return self._normalize_prompts(prompts)
+        self.check_is_fitted()
+        return self.normalize_prompts(prompts)
 
     def __repr__(self) -> str:
+        classifier_type = type(self.classifier).__name__
         return (
             f"TFIDFSearchClassifier("
+            f"classifier={classifier_type}, "
             f"max_features={self.config.max_features}, "
             f"ngram_range={self.config.ngram_range}, "
             f"fitted={self._is_fitted}"

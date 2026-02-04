@@ -1,12 +1,10 @@
-from typing import Any, Dict
-
 import numpy as np
 import numpy.typing as npt
 from sklearn.linear_model import LogisticRegression
 
 from websearchclassifier.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.config import LogisticRegressionConfig
-from websearchclassifier.utils import Weights, logger
+from websearchclassifier.utils import Kwargs, Weights, logger
 
 
 class LogisticRegressionWrapper(ClassifierWrapper[LogisticRegression]):
@@ -21,6 +19,12 @@ class LogisticRegressionWrapper(ClassifierWrapper[LogisticRegression]):
     classifier: LogisticRegression
 
     def create(self) -> LogisticRegression:
+        """
+        Create an instance of the Logistic Regression classifier based on the configuration.
+
+        Returns:
+            LogisticRegression: An instance of the Logistic Regression classifier.
+        """
         return LogisticRegression(
             C=self.config.regularization_strength,
             random_state=self.config.random_state,
@@ -28,11 +32,13 @@ class LogisticRegressionWrapper(ClassifierWrapper[LogisticRegression]):
             solver=self.config.solver,
         )
 
-    def apply_class_weights(
-        self,
-        weights: Weights,
-        labels: npt.NDArray[np.bool_],
-    ) -> Dict[str, Any]:
-        logger.info("Using class weights: %s", weights)
-        self.classifier.set_params(class_weight=weights)
-        return {}
+    @property
+    def feature_importances_(self) -> npt.NDArray[np.floating]:
+        """
+        Get logistic regression coefficients as feature importance scores.
+
+        Returns:
+            npt.NDArray[np.floating]: Absolute values of logistic regression coefficients.
+        """
+        coefficients: npt.NDArray[np.floating] = np.abs(self.classifier.coef_[0])
+        return coefficients

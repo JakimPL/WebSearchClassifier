@@ -1,15 +1,19 @@
-from websearchclassifier.utils.device import Device
-from websearchclassifier.utils.logger import setup_logger
-from websearchclassifier.utils.types import (
-    Bool,
+from websearchclassifier.utils.classifier import (
     ClassifierT_co,
-    Float,
-    Integer,
-    Pathlike,
     ProbabilisticClassifier,
     ProbabilisticClassifierT_co,
-    String,
     TorchModuleT,
+)
+from websearchclassifier.utils.device import Device
+from websearchclassifier.utils.logger import setup_logger
+from websearchclassifier.utils.serialization import load_pickle, save_pickle
+from websearchclassifier.utils.types import (
+    Bool,
+    Float,
+    Integer,
+    Kwargs,
+    Pathlike,
+    String,
     Weights,
     does_belong_to_union,
     is_bool,
@@ -23,6 +27,8 @@ logger = setup_logger()
 __all__ = [
     "setup_logger",
     "logger",
+    "save_pickle",
+    "load_pickle",
     "TorchModuleT",
     "ClassifierT_co",
     "ProbabilisticClassifier",
@@ -32,6 +38,7 @@ __all__ = [
     "Integer",
     "Float",
     "String",
+    "Kwargs",
     "Pathlike",
     "Weights",
     "does_belong_to_union",

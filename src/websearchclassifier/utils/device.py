@@ -5,7 +5,7 @@ from typing import Dict, Mapping, Union, overload
 
 import torch
 
-from websearchclassifier.utils.types import TorchModuleT
+from websearchclassifier.utils.classifier import TorchModuleT
 
 
 class Device(StrEnum):

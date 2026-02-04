@@ -6,6 +6,12 @@ from pydantic import BaseModel, field_serializer, field_validator
 class DatasetPathConfig(BaseModel):
     path: Path
 
+    def __str__(self) -> str:
+        return str(self.path)
+
+    def __repr__(self) -> str:
+        return str(self)
+
     @field_validator("path", mode="before")
     def validate_path(cls, value: Path) -> Path:
         return value.expanduser().resolve()

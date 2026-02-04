@@ -1,12 +1,9 @@
-from typing import Any, Dict
-
 import numpy as np
 import numpy.typing as npt
 from sklearn.svm import SVC
 
 from websearchclassifier.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.config import SVMConfig
-from websearchclassifier.utils import Weights, logger
 
 
 class SVMWrapper(ClassifierWrapper[SVC]):
@@ -21,6 +18,12 @@ class SVMWrapper(ClassifierWrapper[SVC]):
     classifier: SVC
 
     def create(self) -> SVC:
+        """
+        Create an instance of the SVM classifier based on the configuration.
+
+        Returns:
+            SVC: An instance of the SVM classifier.
+        """
         return SVC(
             C=self.config.regularization_strength,
             random_state=self.config.random_state,
@@ -28,13 +31,19 @@ class SVMWrapper(ClassifierWrapper[SVC]):
             probability=self.config.probability,
         )
 
-    def apply_class_weights(
-        self,
-        weights: Weights,
-        labels: npt.NDArray[np.bool_],
-    ) -> Dict[str, Any]:
-        fit_kwargs: Dict[str, Any] = {}
-        sample_weights = np.array([weights[int(label)] for label in labels], dtype=np.float64)
-        logger.info("Using sample weights (mean: %.3f)", sample_weights.mean())
-        fit_kwargs["sample_weight"] = sample_weights
-        return fit_kwargs
+    @property
+    def feature_importances_(self) -> npt.NDArray[np.floating]:
+        """
+        Get feature importance scores for linear kernel SVM. Other kernels do not support feature importance.
+
+        Raises:
+            AttributeError: If the kernel is not linear.
+        """
+        if self.config.kernel == "linear":
+            feature_importances: npt.NDArray[np.floating] = np.abs(self.classifier.coef_[0])
+            return feature_importances
+
+        raise AttributeError(
+            f"Feature importances are not available for kernel='{self.config.kernel}'. "
+            "Only 'linear' kernel supports feature importances."
+        )

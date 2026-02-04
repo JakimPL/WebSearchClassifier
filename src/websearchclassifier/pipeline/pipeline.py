@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import yaml
 
@@ -16,7 +16,7 @@ from websearchclassifier.config import (
     SearchClassifierConfig,
     TFIDFSearchClassifierConfig,
 )
-from websearchclassifier.dataset import Dataset
+from websearchclassifier.dataset import Dataset, Prompts
 from websearchclassifier.model import (
     FastTextSearchClassifier,
     HerBERTSearchClassifier,
@@ -64,15 +64,24 @@ class Pipeline:
             FileNotFoundError: If data file doesn't exist
             ValueError: If required columns are missing
         """
-        logger.info("Loading dataset from %s...", str(self.dataset_config.dataset_path))
+        logger.info("Loading dataset from: '%s'...", str(self.dataset_config.dataset_path))
         self.dataset = Dataset.load(self.dataset_config)
 
         num_positive = self.dataset.positive
         num_negative = self.dataset.negative
 
-        logger.info("Loaded %s examples", len(self.dataset.prompts))
-        logger.info("  - Needs search: %s (%.1f%%)", num_positive, num_positive / self.dataset.size * 100)
-        logger.info("  - No search:    %s (%.1f%%)", num_negative, num_negative / self.dataset.size * 100)
+        logger.info(
+            """Loaded %s examples:
+    - Needs search: %s (%.1f%%)
+    - No search:    %s (%.1f%%)"""
+            % (
+                len(self.dataset.prompts),
+                num_positive,
+                num_positive / self.dataset.size * 100,
+                num_negative,
+                num_negative / self.dataset.size * 100,
+            )
+        )
 
         return self.dataset
 
@@ -164,7 +173,7 @@ class Pipeline:
     def test_predictions(
         self,
         classifier: SearchClassifier[Any],
-        test_prompts: Optional[List[str]] = None,
+        test_prompts: Optional[Union[str, Prompts]] = None,
     ) -> None:
         """
         Test classifier on example prompts and display results.
@@ -181,14 +190,20 @@ class Pipeline:
                 "co to jest rekursja",
                 "ile kosztuje iPhone 15 w Polsce",
                 "przetlumacz zdanie na angielski",
+                "gdzie znajduje się Warszawa?",
+                "wyszukaj mi proszę",
+                "opowiesz coś o sobie?",
+                "gdzie znajduje się Warszawa?",
+                "wyszukaj mi proszę przepis na owsiankę",
             ]
 
         lines = ["Testing predictions:"]
-        for prompt in test_prompts:
+        prompts = classifier.normalize_prompts(test_prompts)
+        for prompt in prompts:
             prediction = classifier.predict(prompt)[0]
             probabilities = classifier.predict_proba(prompt)[0]
             confidence = max(probabilities)
-            search_label = "SEARCH" if prediction else "NO SEARCH"
+            search_label = "   SEARCH" if prediction else "NO SEARCH"
             lines.append(f"  '{prompt}'")
             lines.append(f"    -> {search_label} (confidence: {confidence:.1%})")
 
