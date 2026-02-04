@@ -71,16 +71,14 @@ class Pipeline:
         num_negative = self.dataset.negative
 
         logger.info(
-            """Loaded %s examples:
-    - Needs search: %s (%.1f%%)
-    - No search:    %s (%.1f%%)"""
-            % (
-                len(self.dataset.prompts),
-                num_positive,
-                num_positive / self.dataset.size * 100,
-                num_negative,
-                num_negative / self.dataset.size * 100,
-            )
+            "Loaded %s examples:\n"  #
+            "    - Needs search: %s (%.1f%%)\n"  #
+            "    - No search:    %s (%.1f%%)",  #
+            len(self.dataset.prompts),
+            num_positive,
+            num_positive / self.dataset.size * 100,
+            num_negative,
+            num_negative / self.dataset.size * 100,
         )
 
         return self.dataset

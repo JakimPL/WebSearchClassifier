@@ -4,7 +4,6 @@ from sklearn.linear_model import LogisticRegression
 
 from websearchclassifier.classifier.wrapper import ClassifierWrapper
 from websearchclassifier.config import LogisticRegressionConfig
-from websearchclassifier.utils import Kwargs, Weights, logger
 
 
 class LogisticRegressionWrapper(ClassifierWrapper[LogisticRegression]):
