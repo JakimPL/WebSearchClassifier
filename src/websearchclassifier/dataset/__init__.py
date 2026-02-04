@@ -3,9 +3,11 @@ from websearchclassifier.dataset.dataset import Dataset, DatasetLike
 from websearchclassifier.dataset.format import DatasetFormat
 from websearchclassifier.dataset.item import DatasetItem
 from websearchclassifier.dataset.types import (
+    Label,
     Labels,
     Prediction,
     Predictions,
+    Prompt,
     Prompts,
     is_label,
     is_prediction,
@@ -18,6 +20,8 @@ __all__ = [
     "Dataset",
     "DatasetLike",
     "Prediction",
+    "Prompt",
+    "Label",
     "Prompts",
     "Labels",
     "Predictions",

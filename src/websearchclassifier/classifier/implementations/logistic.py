@@ -2,11 +2,11 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.linear_model import LogisticRegression
 
-from websearchclassifier.classifier.wrapper import ClassifierWrapper
+from websearchclassifier.classifier.base import Classifier
 from websearchclassifier.config import LogisticRegressionConfig
 
 
-class LogisticRegressionWrapper(ClassifierWrapper[LogisticRegression]):
+class LogisticRegressionWrapper(Classifier[LogisticRegression]):
     """
     A wrapper for scikit-learn Logistic Regression classifier.
 

@@ -2,12 +2,12 @@ from pathlib import Path
 
 from pydantic import field_serializer
 
-from websearchclassifier.config.model.base import SearchClassifierConfig
-from websearchclassifier.config.model.type import ModelType
+from websearchclassifier.config.baseline.base import BaselineConfig
+from websearchclassifier.config.baseline.type import BaselineType
 
 
-class FastTextSearchClassifierConfig(SearchClassifierConfig):
-    type: ModelType = ModelType.FASTTEXT
+class FastTextConfig(BaselineConfig):
+    type: BaselineType = BaselineType.FASTTEXT
     embedding_dim: int = 300
     embeddings_path: Path = Path("cc.en.300.bin")
 

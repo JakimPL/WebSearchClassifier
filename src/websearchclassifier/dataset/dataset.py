@@ -13,6 +13,7 @@ from websearchclassifier.config import DatasetConfig, WeightingScheme
 from websearchclassifier.dataset.format import DatasetFormat
 from websearchclassifier.dataset.item import DatasetItem
 from websearchclassifier.dataset.types import (
+    Label,
     Labels,
     Prediction,
     Predictions,
@@ -21,7 +22,7 @@ from websearchclassifier.dataset.types import (
     is_prediction,
     is_prompt,
 )
-from websearchclassifier.utils import Bool, String, Weights
+from websearchclassifier.utils import String, Weights
 
 
 class Dataset(BaseModel):
@@ -250,7 +251,7 @@ class Dataset(BaseModel):
         cls,
         dataset: Optional[Union[Dataset, pd.DataFrame]] = None,
         prompts: Optional[Union[String, Prompts]] = None,
-        labels: Optional[Union[Bool, Labels]] = None,
+        labels: Optional[Union[Label, Labels]] = None,
         confidence: Optional[Union[Prediction, Predictions]] = None,
         config: Optional[DatasetConfig] = None,
     ) -> Self:
@@ -296,7 +297,7 @@ class Dataset(BaseModel):
         return np.array([prompts] if is_prompt(prompts) else prompts, dtype=np.str_)
 
     @staticmethod
-    def normalize_labels(labels: Union[Bool, Labels]) -> npt.NDArray[np.bool_]:
+    def normalize_labels(labels: Union[Label, Labels]) -> npt.NDArray[np.bool_]:
         return np.array([labels] if is_label(labels) else labels, dtype=np.bool_)
 
     @staticmethod

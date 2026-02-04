@@ -6,7 +6,7 @@ from typing import Any, Generic, TypeVar
 from websearchclassifier.config import DatasetConfig, EvaluatorConfig
 from websearchclassifier.dataset import Dataset
 from websearchclassifier.evaluation.types import Metric
-from websearchclassifier.model import SearchClassifier
+from websearchclassifier.model import WebSearchClassifier
 
 EvaluatorConfigT = TypeVar("EvaluatorConfigT", bound=EvaluatorConfig)
 
@@ -18,7 +18,7 @@ class Evaluator(ABC, Generic[EvaluatorConfigT]):
     @abstractmethod
     def __call__(
         self,
-        model: SearchClassifier[Any],
+        model: WebSearchClassifier[Any, Any],
         dataset: Dataset,
         metric: Metric,
         **init_kwargs: Any,
@@ -27,7 +27,7 @@ class Evaluator(ABC, Generic[EvaluatorConfigT]):
         Evaluate the given dataset using the specified metric.
 
         Args:
-            model (SearchClassifier): The model to evaluate.
+            model (WebSearchClassifier): The model to evaluate.
             dataset (Dataset): The dataset to evaluate.
             metric (Metric): The metric to use for evaluation.
             **init_kwargs: Additional keyword arguments for model initialization.

@@ -6,13 +6,13 @@ from websearchclassifier.config import CrossValidationEvaluatorConfig
 from websearchclassifier.dataset import Dataset
 from websearchclassifier.evaluation.base import Evaluator
 from websearchclassifier.evaluation.types import Metric
-from websearchclassifier.model import SearchClassifier
+from websearchclassifier.model import WebSearchClassifier
 
 
 class CrossValidationEvaluator(Evaluator[CrossValidationEvaluatorConfig]):
     def __call__(
         self,
-        model: SearchClassifier[Any],
+        model: WebSearchClassifier[Any, Any],
         dataset: Dataset,
         metric: Metric,
         **init_kwargs: Any,
@@ -21,7 +21,7 @@ class CrossValidationEvaluator(Evaluator[CrossValidationEvaluatorConfig]):
         Perform cross-validation evaluation on the given dataset using the specified metric.
 
         Args:
-            model (SearchClassifier): The model to evaluate.
+            model (WebSearchClassifier): The model to evaluate.
             dataset (Dataset): The dataset to evaluate.
             metric (Metric): The metric to use for evaluation.
             **init_kwargs: Additional keyword arguments for model initialization.

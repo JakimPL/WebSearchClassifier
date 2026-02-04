@@ -4,11 +4,11 @@ from typing import Generic
 import numpy as np
 import numpy.typing as npt
 
-from websearchclassifier.config import ClassifierConfig
+from websearchclassifier.config.classifier.base import ClassifierConfig
 from websearchclassifier.utils import Kwargs, ProbabilisticClassifierT_co, Weights, logger
 
 
-class ClassifierWrapper(Generic[ProbabilisticClassifierT_co], ABC):
+class Classifier(Generic[ProbabilisticClassifierT_co], ABC):
     """
     A base class for scikit-learn classifiers to provide a consistent interface.
 
@@ -18,7 +18,7 @@ class ClassifierWrapper(Generic[ProbabilisticClassifierT_co], ABC):
 
     classifier: ProbabilisticClassifierT_co
 
-    def __init__(self, config: ClassifierConfig[ProbabilisticClassifierT_co]) -> None:
+    def __init__(self, config: ClassifierConfig) -> None:
         self.config = config
         self.classifier = self.create()
 
@@ -61,3 +61,13 @@ class ClassifierWrapper(Generic[ProbabilisticClassifierT_co], ABC):
         Raises:
             AttributeError: If the classifier does not support feature importance.
         """
+
+    @property
+    def class_name(self) -> str:
+        """
+        Get the class name of the baseline.
+
+        Returns:
+            The class name as a string.
+        """
+        return self.__class__.__name__

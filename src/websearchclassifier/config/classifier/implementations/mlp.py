@@ -1,12 +1,10 @@
 from typing import List, Literal
 
-from sklearn.neural_network import MLPClassifier
-
 from websearchclassifier.config.classifier.base import ClassifierConfig
 from websearchclassifier.config.classifier.type import ClassifierType
 
 
-class MLPConfig(ClassifierConfig[MLPClassifier]):
+class MLPConfig(ClassifierConfig):
     type: ClassifierType = ClassifierType.MLP
     hidden_layer_sizes: List[int] = [128, 64]
     activation: Literal["identity", "logistic", "tanh", "relu"] = "relu"

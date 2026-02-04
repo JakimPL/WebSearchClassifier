@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from sklearn.base import ClassifierMixin
 
+ModelT = TypeVar("ModelT")
 TorchModuleT = TypeVar("TorchModuleT", bound=torch.nn.Module)
 ClassifierT_co = TypeVar("ClassifierT_co", bound=ClassifierMixin, covariant=True)
 

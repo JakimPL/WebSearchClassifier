@@ -1,20 +1,10 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
-from websearchclassifier import (
-    DatasetConfig,
-    FastTextSearchClassifierConfig,
-    ModelType,
-    Pipeline,
-    SearchClassifierConfig,
-    TFIDFSearchClassifierConfig,
-)
-from websearchclassifier.config import ClassifierType, HerBERTSearchClassifierConfig
-from websearchclassifier.config.classifier.implementations.logistic import LogisticRegressionConfig
-from websearchclassifier.config.classifier.implementations.mlp import MLPConfig
-from websearchclassifier.config.classifier.implementations.svm import SVMConfig
+from websearchclassifier import BaselineType, DatasetConfig, Pipeline
+from websearchclassifier.config import ClassifierType, WebSearchClassifierConfig
 from websearchclassifier.utils import logger
 
 
@@ -37,8 +27,8 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model-type",
-        type=ModelType,
-        choices=list(ModelType),
+        type=BaselineType,
+        choices=list(BaselineType),
         required=True,
         help="Type of model to train",
     )
@@ -78,16 +68,16 @@ def parse_arguments() -> argparse.Namespace:
 
 def load_configuration(
     config_path: Path,
-    model_type: ModelType,
+    baseline_type: BaselineType,
     classifier_type: ClassifierType,
     output_path_override: Optional[Path] = None,
-) -> Tuple[SearchClassifierConfig, Path]:
+) -> Tuple[WebSearchClassifierConfig, Path]:
     """
     Load model configuration from YAML file or use defaults.
 
     Args:
         config_path: Path to YAML configuration file.
-        model_type: Type of model to train (`tfidf`, `fasttext`, or `herbert`).
+        baseline_type: Type of baseline model to train (`tfidf`, `fasttext`, or `herbert`).
         classifier_type: Type of classifier to train (`logistic_regression` or `svm`).
         output_path_override: Optional path to override config output path.
 
@@ -98,47 +88,19 @@ def load_configuration(
         ValueError: If model type is unknown.
         KeyError: If model type not found in config file.
     """
-    try:
-        logger.info("Loading configuration from %s", config_path)
-        config, output_path_from_config = Pipeline.load_config(config_path, model_type, classifier_type)
-        output_path = Path(output_path_override or output_path_from_config)
-        return config, output_path
-
-    except FileNotFoundError as exception:
-        logger.warning("Config file %s not found, using defaults", config_path)
-        output_path = Path(output_path_override or f"models/{model_type}_classifier.pkl")
-
-        classifier_config: Union[LogisticRegressionConfig, SVMConfig, MLPConfig]
-        match classifier_type:
-            case ClassifierType.LOGISTIC_REGRESSION:
-                classifier_config = LogisticRegressionConfig()
-            case ClassifierType.SVM:
-                classifier_config = SVMConfig()
-            case ClassifierType.MLP:
-                classifier_config = MLPConfig()
-            case _:
-                logger.error("Unknown classifier type: %s", classifier_type)
-                logger.info("Available: %s", ", ".join(ct.name for ct in ClassifierType))
-                raise ValueError(f"Unknown classifier type: {classifier_type}") from exception
-
-        match model_type:
-            case ModelType.TFIDF:
-                config = TFIDFSearchClassifierConfig(classifier_config=classifier_config)
-            case ModelType.FASTTEXT:
-                config = FastTextSearchClassifierConfig(classifier_config=classifier_config)
-            case ModelType.HERBERT:
-                config = HerBERTSearchClassifierConfig(classifier_config=classifier_config)
-            case _:
-                logger.error("Unknown model type: %s", model_type)
-                logger.info("Available: %s", ", ".join(mt.name for mt in ModelType))
-                raise ValueError(f"Unknown model type: {model_type}") from exception
-
-        return config, output_path
+    logger.info("Loading configuration from %s", config_path)
+    config, output_path_from_config = Pipeline.load_config(
+        baseline_type,
+        classifier_type,
+        config_path,
+    )
+    output_path = Path(output_path_override or output_path_from_config)
+    return config, output_path
 
 
 def run_pipeline(
     pipeline: Pipeline,
-    config: SearchClassifierConfig,
+    config: WebSearchClassifierConfig,
     output_path: Path,
 ) -> None:
     """
@@ -176,22 +138,23 @@ def main() -> None:
 
     args = parse_arguments()
 
+    dataset_config = DatasetConfig(
+        dataset_path=args.data_path,
+        prompt_column=args.text_column,
+        label_column=args.label_column,
+    )
+
+    pipeline = Pipeline(dataset_config=dataset_config)
     try:
         config, output_path = load_configuration(
             config_path=args.config,
-            model_type=args.model_type,
+            baseline_type=args.baseline_type,
             classifier_type=args.classifier_type,
             output_path_override=args.output_path,
         )
     except (ValueError, KeyError) as exception:
         logger.error("Configuration error: %s", exception)
         sys.exit(1)
-
-    dataset_config = DatasetConfig(
-        dataset_path=args.data_path,
-        prompt_column=args.text_column,
-        label_column=args.label_column,
-    )
 
     pipeline = Pipeline(dataset_config=dataset_config)
     run_pipeline(

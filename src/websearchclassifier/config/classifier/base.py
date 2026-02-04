@@ -1,13 +1,11 @@
 from abc import ABC
-from typing import Generic
 
 from pydantic import BaseModel, ConfigDict
 
 from websearchclassifier.config.classifier.type import ClassifierType
-from websearchclassifier.utils import ProbabilisticClassifierT_co
 
 
-class ClassifierConfig(BaseModel, Generic[ProbabilisticClassifierT_co], ABC):
+class ClassifierConfig(BaseModel, ABC):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         frozen=True,

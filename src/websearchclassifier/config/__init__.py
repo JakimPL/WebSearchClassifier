@@ -1,3 +1,8 @@
+from websearchclassifier.config.baseline.base import BaselineConfig
+from websearchclassifier.config.baseline.implementations.ftext import FastTextConfig
+from websearchclassifier.config.baseline.implementations.herbert import HerBERTConfig
+from websearchclassifier.config.baseline.implementations.tfidf import TFIDFConfig
+from websearchclassifier.config.baseline.type import BaselineType, BaselineTypeLike, BaselineTypeLiteral
 from websearchclassifier.config.classifier.base import ClassifierConfig
 from websearchclassifier.config.classifier.implementations.logistic import LogisticRegressionConfig
 from websearchclassifier.config.classifier.implementations.mlp import MLPConfig
@@ -7,17 +12,18 @@ from websearchclassifier.config.dataset.dataset import DatasetConfig
 from websearchclassifier.config.dataset.weights import WeightingScheme, WeightingSchemeLike
 from websearchclassifier.config.evaluation.base import EvaluatorConfig
 from websearchclassifier.config.evaluation.implementations.cross_validation import CrossValidationEvaluatorConfig
-from websearchclassifier.config.model.base import SearchClassifierConfig
-from websearchclassifier.config.model.implementations.ftext import FastTextSearchClassifierConfig
-from websearchclassifier.config.model.implementations.herbert import HerBERTSearchClassifierConfig
-from websearchclassifier.config.model.implementations.tfidf import TFIDFSearchClassifierConfig
-from websearchclassifier.config.model.type import ModelType, ModelTypeLike, ModelTypeLiteral
-from websearchclassifier.config.model.types import ClassifierConfigT, ConfigT
+from websearchclassifier.config.model.search import WebSearchClassifierConfig
+from websearchclassifier.config.type import get_baseline_config_class, get_classifier_config_class, load_model_config
 
 __all__ = [
     "DatasetConfig",
-    "ConfigT",
-    "ClassifierConfigT",
+    "BaselineType",
+    "BaselineTypeLiteral",
+    "BaselineTypeLike",
+    "BaselineConfig",
+    "TFIDFConfig",
+    "FastTextConfig",
+    "HerBERTConfig",
     "ClassifierType",
     "ClassifierTypeLiteral",
     "ClassifierTypeLike",
@@ -25,15 +31,12 @@ __all__ = [
     "LogisticRegressionConfig",
     "MLPConfig",
     "SVMConfig",
-    "ModelType",
-    "ModelTypeLiteral",
-    "ModelTypeLike",
-    "SearchClassifierConfig",
-    "TFIDFSearchClassifierConfig",
-    "FastTextSearchClassifierConfig",
-    "HerBERTSearchClassifierConfig",
+    "WebSearchClassifierConfig",
     "EvaluatorConfig",
     "CrossValidationEvaluatorConfig",
     "WeightingScheme",
     "WeightingSchemeLike",
+    "get_baseline_config_class",
+    "get_classifier_config_class",
+    "load_model_config",
 ]

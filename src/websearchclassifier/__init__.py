@@ -1,21 +1,23 @@
-from websearchclassifier.classifier import ClassifierWrapper, LogisticRegressionWrapper, MLPWrapper, SVMWrapper
+from websearchclassifier.classifier import Classifier, LogisticRegressionWrapper, MLPWrapper, SVMWrapper
 from websearchclassifier.config import (
+    BaselineConfig,
+    BaselineType,
     ClassifierConfig,
     ClassifierType,
     CrossValidationEvaluatorConfig,
     DatasetConfig,
     EvaluatorConfig,
-    FastTextSearchClassifierConfig,
+    FastTextConfig,
+    HerBERTConfig,
     LogisticRegressionConfig,
     MLPConfig,
-    ModelType,
-    SearchClassifierConfig,
     SVMConfig,
-    TFIDFSearchClassifierConfig,
+    TFIDFConfig,
+    load_model_config,
 )
 from websearchclassifier.dataset import Dataset, DatasetFormat
 from websearchclassifier.evaluation import CrossValidationEvaluator, Evaluator
-from websearchclassifier.model import FastTextSearchClassifier, SearchClassifier, TFIDFSearchClassifier
+from websearchclassifier.model import WebSearchClassifier
 from websearchclassifier.pipeline import Pipeline
 from websearchclassifier.utils import logger
 
@@ -23,26 +25,26 @@ __all__ = [
     "Dataset",
     "DatasetFormat",
     "DatasetConfig",
-    "SearchClassifier",
-    "SearchClassifierConfig",
-    "FastTextSearchClassifier",
-    "FastTextSearchClassifierConfig",
-    "TFIDFSearchClassifier",
-    "TFIDFSearchClassifierConfig",
+    "WebSearchClassifier",
+    "BaselineConfig",
+    "TFIDFConfig",
+    "FastTextConfig",
+    "HerBERTConfig",
     "ClassifierType",
     "ClassifierConfig",
-    "ClassifierWrapper",
+    "Classifier",
     "LogisticRegressionConfig",
     "LogisticRegressionWrapper",
     "SVMConfig",
     "SVMWrapper",
     "MLPConfig",
     "MLPWrapper",
-    "ModelType",
+    "BaselineType",
     "EvaluatorConfig",
     "Evaluator",
     "CrossValidationEvaluatorConfig",
     "CrossValidationEvaluator",
     "Pipeline",
     "logger",
+    "load_model_config",
 ]

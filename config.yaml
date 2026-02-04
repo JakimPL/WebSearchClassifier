@@ -12,6 +12,22 @@ general:
   random_state: &random_state 42
   batch_size: &batch_size 128
 
+baselines:
+  tfidf:
+    max_features: 5000
+    ngram_range: [1, 3]
+    min_document_frequency: 2
+    max_document_frequency: 0.95
+
+  fasttext:
+    embedding_dim: 300
+    embeddings_path: cc.pl.300.bin
+
+  herbert:
+    model_name: allegro/herbert-base-cased
+    batch_size: *batch_size
+    device: *device
+
 classifiers:
   logistic_regression:
     random_state: *random_state
@@ -34,23 +50,3 @@ classifiers:
     regularization_strength: 1.0
     probability: true
     kernel: rbf
-
-models:
-  tfidf:
-    use_class_weights: true
-    max_features: 5000
-    ngram_range: [1, 3]
-    min_document_frequency: 2
-    max_document_frequency: 0.95
-
-  fasttext:
-    use_class_weights: true
-    embedding_dim: 300
-    embeddings_path: cc.pl.300.bin
-
-  herbert:
-    use_class_weights: true
-    model_name: allegro/herbert-base-cased
-    batch_size: *batch_size
-    max_length: 1024
-    device: *device

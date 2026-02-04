@@ -2,12 +2,12 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.neural_network import MLPClassifier
 
-from websearchclassifier.classifier.wrapper import ClassifierWrapper
+from websearchclassifier.classifier.base import Classifier
 from websearchclassifier.config import MLPConfig
 from websearchclassifier.utils import Kwargs, Weights, logger
 
 
-class MLPWrapper(ClassifierWrapper[MLPClassifier]):
+class MLPWrapper(Classifier[MLPClassifier]):
     """
     A wrapper for scikit-learn MLP classifier.
 

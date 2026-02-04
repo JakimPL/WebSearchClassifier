@@ -2,11 +2,11 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.svm import SVC
 
-from websearchclassifier.classifier.wrapper import ClassifierWrapper
+from websearchclassifier.classifier.base import Classifier
 from websearchclassifier.config import SVMConfig
 
 
-class SVMWrapper(ClassifierWrapper[SVC]):
+class SVMWrapper(Classifier[SVC]):
     """
     A wrapper for scikit-learn SVM classifier.
 

@@ -1,5 +1,6 @@
 from websearchclassifier.utils.classifier import (
     ClassifierT_co,
+    ModelT,
     ProbabilisticClassifier,
     ProbabilisticClassifierT_co,
     TorchModuleT,
@@ -29,6 +30,7 @@ __all__ = [
     "logger",
     "save_pickle",
     "load_pickle",
+    "ModelT",
     "TorchModuleT",
     "ClassifierT_co",
     "ProbabilisticClassifier",
